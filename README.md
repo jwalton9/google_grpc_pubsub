@@ -29,71 +29,60 @@ config :goth,
   disabled: true
 ```
 
-## Getting Started
-
-### Creating a topic and subscription
+By default there can be 10 concurrent calls to the rpc channel, if you would like to increase this
 
 ```elixir
-project = "my-project"
-topic =
-  Pubsub.Topic.new(project: project, name: "my-topic")
-  |> Pubsub.Topic.create()
+config :google_grpc_pubsub,
+  pool_size: 50
+```
 
-Pubsub.Subscription.new(project: project, name: "my-subscription")
-|> Pubsub.Subscription.create(topic)
+## Getting Started
+
+### Creating a topic
+
+```elixir
+{:ok, topic} = Pubsub.Topic.create(project: "my-project", topic: "my-topic")
+```
+
+### Create a subscription
+
+```elixir
+{:ok, subscription} = Pubsub.Subscription.create(project: "my-project", subscription: "my-subscription", topic: "my-topic")
 ```
 
 ### Publishing a message
 
 ```elixir
-alias Pubsub.{Topic, Publisher}
-
-topic = Topic.new(project: "project", name: "topic")
+{:ok, topic} = Pubsub.Topic.get(project: "my-project", topic: "my-topic")
 
 # Publish some string data
-Publisher.publish(topic, "my string data")
+Pubsub.publish(topic, "my string data")
 
 # Or you can publish a map, which will be encoded to JSON
-Publisher.publish(topic, %{some: "json data"})
+Pubsub.publish(topic, %{some: "json data"})
 
 
 # You can also publish multiple messages at once
-Publisher.publish(topic, [%{some: "json data"}, %{another: "message"}])
+Pubsub.publish(topic, [%{some: "json data"}, %{another: "message"}])
 ```
 
 ### Pulling Messages
 
 ```elixir
-alias Pubsub.{Subscription, Subscriber}
+{:ok, subscription} = Pubsub.Subscription.get(project: "project", subscription: "subscription")
 
-subscription = Subscription.new(project: "project", name: "subscription")
-
-case Subscriber.pull(subscription, max_messages: 5) do
-  {:ok, messages} ->
-    IO.puts("Received #{length(messages)} messages")
-
-  {:error, error} ->
-    raise error
-end
+{:ok, messages} = Pubsub.Subscriber.pull(subscription, max_messages: 5)
 ```
 
 ### Acknowledging Messages
 
 ```elixir
-alias Pubsub.{Message, Subscriber}
+{:ok, subscription} = Pubsub.Subscription.get(project: "project", subscription: "subscription")
 
-case Subscriber.pull(subscription, max_messages: 5) do
-  {:ok, messages} ->
-    messages = Enum.map(messages, fn message ->
-      case message.data do
-        "valid" -> Message.ack(message)
-        _ -> message
-      end
-    end)
+{:ok, messages} = Pubsub.Subscriber.pull(subscription, max_messages: 5)
 
-    Subscriber.acknowledge(subscription, messages)
-
-  {:error, error} ->
-    {:error, error}
-end
+messages
+|> Enum.map(&Pubsub.Message.decode!/1)
+|> Enum.filter(fn message -> message.data["valid"] end)
+|> Pubsub.acknowledge(subscription)
 ```

@@ -1,39 +1,43 @@
 defmodule Pubsub.Subscription do
   alias Pubsub.{Client, Topic}
-  alias Google.Pubsub.V1.Subscriber.Stub
+  alias Google.Pubsub.V1.{Subscriber.Stub, Subscription, GetSubscriptionRequest}
 
-  @type t :: %__MODULE__{
-          id: String.t()
-        }
+  @type opts :: [project: String.t(), subscription: String.t()]
 
-  defstruct [:id]
-
-  @spec new(project: String.t(), name: String.t()) :: t()
-  def new(opts) do
-    %__MODULE__{id: id(opts[:project], opts[:name])}
-  end
-
-  @spec create(t(), Topic.t()) ::
-          {:ok, Google.Pubsub.V1.Subscription.t()} | {:error, any()}
-  def create(struct, topic) do
+  @spec create(project: String.t(), subscription: String.t(), topic: String.t()) ::
+          {:ok, Subscription.t()} | {:error, any()}
+  def create(opts) do
     subscription =
-      Google.Pubsub.V1.Subscription.new(
-        name: struct.id,
-        topic: topic.id
+      Subscription.new(
+        name: id(opts),
+        topic: Topic.id(opts)
       )
 
-    Client.call(Stub, :create_subscription, subscription)
+    Client.send_request(Stub, :create_subscription, subscription)
   end
 
-  @spec delete(t()) :: Google.Protobuf.Empty.t()
-  def delete(struct) do
-    request = Google.Pubsub.V1.DeleteSubscriptionRequest.new(subscription: struct.id)
+  @spec get(opts()) ::
+          {:ok, Subscription.t()} | {:error, any()}
+  def get(opts) do
+    request = GetSubscriptionRequest.new(subscription: id(opts))
 
-    Client.call(Stub, :delete_subscription, request)
+    Client.send_request(Stub, :get_subscription, request)
   end
 
-  @spec id(String.t(), String.t()) :: String.t()
-  defp id(project, name) do
-    Path.join(["projects", project, "subscriptions", name])
+  @spec delete(Subscription.t()) :: Google.Protobuf.Empty.t()
+  def delete(%Subscription{name: name}) do
+    request = Google.Pubsub.V1.DeleteSubscriptionRequest.new(subscription: name)
+
+    Client.send_request(Stub, :delete_subscription, request)
+  end
+
+  @spec id(opts()) :: String.t()
+  def id(opts) do
+    Path.join([
+      "projects",
+      Keyword.fetch!(opts, :project),
+      "subscriptions",
+      Keyword.fetch!(opts, :subscription)
+    ])
   end
 end

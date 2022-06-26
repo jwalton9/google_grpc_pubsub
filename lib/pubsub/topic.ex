@@ -1,27 +1,25 @@
 defmodule Pubsub.Topic do
   alias Pubsub.Client
-  alias Google.Pubsub.V1.Publisher.Stub
+  alias Google.Pubsub.V1.{Publisher.Stub, Topic, GetTopicRequest}
 
-  @type t :: %__MODULE__{
-          id: String.t()
-        }
+  @type opts :: [project: String.t(), topic: String.t()]
 
-  defstruct [:id]
+  @spec create(opts()) :: {:ok, Topic.t()} | {:error, any()}
+  def create(opts) do
+    request = Topic.new(name: id(opts))
 
-  @spec new(project: String.t(), name: String.t()) :: t()
-  def new(opts) do
-    %__MODULE__{id: id(opts[:project], opts[:name])}
+    Client.send_request(Stub, :create_topic, request)
   end
 
-  @spec create(t()) :: {:ok, Google.Pubsub.V1.Topic.t()} | {:error, any()}
-  def create(struct) do
-    topic = Google.Pubsub.V1.Topic.new(name: struct.id)
+  @spec get(opts()) :: {:ok, Topic.t()} | {:error, any()}
+  def get(opts) do
+    request = GetTopicRequest.new(topic: id(opts))
 
-    Client.call(Stub, :create_topic, topic)
+    Client.send_request(Stub, :get_topic, request)
   end
 
-  @spec id(String.t(), String.t()) :: String.t()
-  defp id(project, name) do
-    Path.join(["projects", project, "topics", name])
+  @spec id(opts()) :: String.t()
+  def id(opts) do
+    Path.join(["projects", Keyword.fetch!(opts, :project), "topics", Keyword.fetch!(opts, :topic)])
   end
 end

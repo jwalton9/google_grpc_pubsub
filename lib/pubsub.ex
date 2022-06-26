@@ -6,18 +6,35 @@ defmodule Pubsub do
   """
   use Application
 
+  alias Google.Pubsub.V1.{
+    Subscription,
+    Topic
+  }
+
   @impl true
   def start(_type, _opts) do
-    poolboy_config = [
-      name: {:local, :grpc_client_pool},
-      worker_module: Pubsub.Client,
-      size: 3
-    ]
-
     children = [
-      :poolboy.child_spec(:grpc_client_pool, poolboy_config)
+      {Task.Supervisor, name: Pubsub.TaskSupervisor, max_children: 50},
+      {Pubsub.Client, []}
     ]
 
-    Supervisor.start_link(children, strategy: :one_for_one, name: Pubsub.Supervisor)
+    Supervisor.start_link(children, strategy: :one_for_one, name: __MODULE__)
+  end
+
+  @spec publish(Topic.t(), String.t() | map() | [String.t() | map()]) ::
+          :ok | {:error, any()}
+  def publish(topic, data) do
+    Pubsub.Publisher.publish(topic, data)
+  end
+
+  @spec pull(Subscription.t(), Keyword.t()) :: {:ok, [Pubsub.Message.t()]} | {:error, any()}
+  def pull(subscription, opts \\ []) do
+    Pubsub.Subscriber.pull(subscription, opts)
+  end
+
+  @spec acknowledge([Pubsub.Message.t()], Subscription.t()) ::
+          :ok | {:error, any()}
+  def acknowledge(messages, subscription) do
+    Pubsub.Subscriber.acknowledge(subscription, messages)
   end
 end

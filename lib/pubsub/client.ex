@@ -1,33 +1,38 @@
 defmodule Pubsub.Client do
+  @moduledoc false
   use GenServer
 
-  @type t :: %__MODULE__{
-          channel: GRPC.Channel.t(),
-          emulator?: boolean()
-        }
-
-  defstruct channel: nil, emulator?: false
-
   def start_link(init_opts) do
-    GenServer.start_link(__MODULE__, init_opts)
+    GenServer.start_link(__MODULE__, init_opts, name: __MODULE__)
   end
 
-  @spec channel() :: GRPC.Channel.t()
-  def channel() do
-    :poolboy.transaction(:grpc_client_pool, fn pid ->
-      GenServer.call(pid, :channel)
-    end)
+  @spec get() :: GRPC.Channel.t()
+  def get() do
+    GenServer.call(__MODULE__, :channel)
   end
 
-  @spec call(module(), atom(), any(), Keyword.t()) :: any()
-  def call(mod, fun, req, opts \\ []) do
-    :poolboy.transaction(:grpc_client_pool, fn pid ->
-      GenServer.call(pid, {:call, {mod, fun, req, opts}})
-    end)
+  @spec send_request(module(), function(), any(), Keyword.t()) :: {:ok, any()} | {:error, any()}
+  def send_request(mod, fun, req, opts \\ []) do
+    {timeout, opts} = Keyword.pop(opts, :timeout, 5000)
+
+    GenServer.call(__MODULE__, {:send_request, mod, fun, req, opts}, timeout)
+  end
+
+  @spec request_opts(Keyword.t(), boolean()) :: Keyword.t()
+  defp request_opts(opts, false), do: opts
+
+  defp request_opts(opts, _) do
+    case Goth.Token.for_scope("https://www.googleapis.com/auth/pubsub") do
+      {:ok, %{token: token, type: token_type}} ->
+        Keyword.put(opts, :metadata, %{"authorization" => "#{token_type} #{token}"})
+
+      _ ->
+        opts
+    end
   end
 
   @impl true
-  def init(_init_opts) do
+  def init(_) do
     emulator = Application.get_env(:google_grpc_pubsub, :emulator)
 
     case emulator do
@@ -54,7 +59,7 @@ defmodule Pubsub.Client do
     end
     |> case do
       {:ok, channel} ->
-        {:ok, %__MODULE__{channel: channel, emulator?: not is_nil(emulator)}}
+        {:ok, %{channel: channel, use_goth: is_nil(emulator), tasks: %{}}}
 
       {:error, error} ->
         {:error, error}
@@ -62,34 +67,48 @@ defmodule Pubsub.Client do
   end
 
   @impl true
-  def handle_call(:channel, _info, %__MODULE__{channel: channel} = client) do
-    {:reply, channel, client}
+  def handle_call(:channel, _info, %{channel: channel} = state) do
+    {:reply, channel, state}
   end
 
-  @impl true
   def handle_call(
-        {:call, {mod, fun, req, opts}},
-        _info,
-        %__MODULE__{channel: channel, emulator?: emulator?} = client
+        {:send_request, mod, fun, req, opts},
+        from,
+        %{channel: channel, use_goth: use_goth} = state
       ) do
-    opts = if emulator?, do: opts, else: request_opts(opts)
+    opts = request_opts(opts, use_goth)
 
-    {:reply, apply(mod, fun, [channel, req, opts]), client}
+    task =
+      Task.Supervisor.async_nolink(Pubsub.TaskSupervisor, fn ->
+        apply(mod, fun, [channel, req, opts])
+      end)
+
+    state = put_in(state.tasks[task.ref], from)
+
+    {:noreply, state}
   end
 
   @impl true
-  def handle_info(_info, client) do
-    {:noreply, client}
+  def handle_info({ref, result}, state) when is_reference(ref) and is_map_key(state.tasks, ref) do
+    Process.demonitor(ref, [:flush])
+
+    {from, state} = pop_in(state.tasks[ref])
+
+    GenServer.reply(from, result)
+
+    {:noreply, state}
   end
 
-  @spec request_opts(Keyword.t()) :: Keyword.t()
-  defp request_opts(opts) do
-    case Goth.Token.for_scope("https://www.googleapis.com/auth/pubsub") do
-      {:ok, %{token: token, type: token_type}} ->
-        Keyword.put(opts, :metadata, %{"authorization" => "#{token_type} #{token}"})
+  def handle_info({:DOWN, ref, _, _, reason}, state)
+      when is_reference(ref) and is_map_key(state.tasks, ref) do
+    {from, state} = pop_in(state.tasks[ref])
 
-      _ ->
-        opts
-    end
+    GenServer.reply(from, {:error, reason})
+
+    {:noreply, state}
+  end
+
+  def handle_info(_info, state) do
+    {:noreply, state}
   end
 end

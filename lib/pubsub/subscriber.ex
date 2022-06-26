@@ -1,20 +1,21 @@
 defmodule Pubsub.Subscriber do
-  alias Pubsub.{Client, Subscription, Message}
+  alias Pubsub.{Client, Message}
 
   alias Google.Pubsub.V1.{
     Subscriber.Stub,
+    Subscription,
     PullRequest,
     PullResponse,
     AcknowledgeRequest
   }
 
   @type t :: %__MODULE__{
-          project: String.t(),
-          subscription: String.t(),
-          request_opts: Keyword.t()
+          subscription: Subscription.t(),
+          request_opts: Keyword.t(),
+          worker: pid()
         }
 
-  defstruct [:project, :subscription, :request_opts]
+  defstruct subscription: nil, request_opts: [], worker: nil
 
   @callback handle_messages([Message.t()]) :: [Message.t()]
 
@@ -30,6 +31,7 @@ defmodule Pubsub.Subscriber do
 
       alias Google.Pubsub.V1.{
         Subscriber.Stub,
+        Subscription,
         StreamingPullRequest,
         StreamingPullResponse
       }
@@ -51,27 +53,33 @@ defmodule Pubsub.Subscriber do
       def init(init_arg) do
         schedule_listen()
 
-        {subscription, request_opts} = Keyword.pop!(init_arg, :subscription)
+        {subscription_opts, request_opts} = Keyword.split(init_arg, [:subscription, :project])
 
-        {project, request_opts} = Keyword.pop!(request_opts, :project)
+        case Pubsub.Subscription.get(
+               subscription_opts[:project],
+               subscription_opts[:subscription]
+             ) do
+          {:ok, subscription} ->
+            {:ok, %Subscriber{subscription: subscription, request_opts: request_opts}}
 
-        {:ok,
-         %Subscriber{
-           project: project,
-           subscription: subscription,
-           request_opts: request_opts
-         }}
+          {:error, error} ->
+            {:error, error}
+        end
       end
 
       @impl true
-      def handle_info(:listen, struct) do
-        create_stream(struct)
-        |> receive_messages(&handle_messages/1)
-        |> close_stream(struct)
+      def handle_info(
+            :listen,
+            %Subscriber{subscription: subscription, request_opts: request_opts} = state
+          ) do
+        subscription
+        |> create_stream(request_opts)
+        |> receive_messages()
+        |> close_stream(subscription)
 
         schedule_listen()
 
-        {:noreply, struct}
+        {:noreply, state}
       end
 
       @impl true
@@ -94,58 +102,54 @@ defmodule Pubsub.Subscriber do
         Process.send_after(self(), :listen, 100)
       end
 
-      @spec create_stream(t()) :: GRPC.Client.Stream.t()
-      defp create_stream(
-             %Subscriber{
-               request_opts: request_opts
-             } = struct
-           ) do
+      @spec create_stream(Subscription.t(), Keyword.t()) :: GRPC.Client.Stream.t()
+      defp create_stream(subscription, request_opts) do
         request =
-          request_opts
-          |> Keyword.merge(
-            subscription: subscription_path(struct),
-            stream_ack_deadline_seconds: 10
+          StreamingPullRequest.new(
+            subscription: subscription.name,
+            stream_ack_deadline_seconds:
+              Keyword.get(request_opts, :stream_ack_deadline_seconds, 10)
           )
-          |> StreamingPullRequest.new()
 
-        Client.channel()
+        Client.get()
         |> Stub.streaming_pull(timeout: :infinity)
         |> GRPC.Stub.send_request(request)
       end
 
-      @spec receive_messages(GRPC.Client.Stream.t(), t()) :: GRPC.Client.Stream.t()
-      defp close_stream(stream, struct) do
-        request = StreamingPullRequest.new(subscription: subscription_path(struct))
+      @spec close_stream(GRPC.Client.Stream.t(), Subscription.t()) :: GRPC.Client.Stream.t()
+      defp close_stream(stream, subscription) do
+        request = StreamingPullRequest.new(subscription: subscription.name)
 
         GRPC.Stub.send_request(stream, request, end_stream: true)
       end
 
-      @spec receive_messages(GRPC.Client.Stream.t(), function()) :: GRPC.Client.Stream.t()
-      defp receive_messages(stream, fun) do
+      @spec receive_messages(GRPC.Client.Stream.t()) :: GRPC.Client.Stream.t()
+      defp receive_messages(stream) do
         case GRPC.Stub.recv(stream, timeout: :infinity) do
           {:ok, recv} ->
-            recv
-            |> Stream.map(fn
-              {:ok, %StreamingPullResponse{received_messages: received_messages}} ->
-                received_messages
-                |> Enum.map(&Pubsub.Message.new/1)
-
-              {:error, error} ->
-                raise error
-            end)
-            |> Enum.reduce(stream, fn stream, messages ->
-              ack_ids =
-                messages
-                |> fun.()
-                |> Enum.filter(fn %Pubsub.Message{acked?: acked} -> acked end)
-                |> Enum.map(fn %Pubsub.Message{ack_id: ack_id} -> ack_id end)
-
-              ack(stream, ack_ids)
-            end)
+            process_recv(recv, stream)
 
           {:error, error} ->
             raise error
         end
+      end
+
+      @spec process_recv(Enumerable.t(), GRPC.Client.Stream.t()) :: GRPC.Client.Stream.t()
+      defp process_recv(recv, stream) do
+        Enum.reduce(recv, stream, fn
+          {:ok, %StreamingPullResponse{received_messages: received_messages}}, stream ->
+            ack_ids =
+              received_messages
+              |> Enum.map(&Pubsub.Message.new/1)
+              |> handle_messages()
+              |> Enum.filter(fn %Pubsub.Message{acked?: acked} -> acked end)
+              |> Enum.map(fn %Pubsub.Message{ack_id: ack_id} -> ack_id end)
+
+            ack(stream, ack_ids)
+
+          {:error, error}, _stream ->
+            raise error
+        end)
       end
 
       @spec ack(GRPC.Client.Stream.t(), [String.t()]) :: GRPC.Client.Stream.t()
@@ -158,14 +162,14 @@ defmodule Pubsub.Subscriber do
   end
 
   @spec pull(Subscription.t(), max_messages: number()) :: {:ok, [Message.t()]} | {:error, any()}
-  def pull(subscription, opts \\ []) do
+  def pull(%Subscription{name: name}, opts \\ []) do
     request =
       PullRequest.new(
-        subscription: subscription.id,
+        subscription: name,
         max_messages: Keyword.get(opts, :max_messages, 10)
       )
 
-    Client.call(Stub, :pull, request)
+    Client.send_request(Stub, :pull, request, timeout: 30_000)
     |> case do
       {:ok, %PullResponse{received_messages: received_messages}} ->
         {:ok, Enum.map(received_messages, &Message.new/1)}
@@ -176,15 +180,15 @@ defmodule Pubsub.Subscriber do
   end
 
   @spec acknowledge(Subscription.t(), [Message.t()]) ::
-          {:ok, Google.Protobuf.Empty.t()} | {:error, any()}
+          :ok | {:error, any()}
   def acknowledge(subscription, messages) do
-    ack_ids =
-      messages
-      |> Enum.filter(fn %Message{acked?: acked} -> acked end)
-      |> Enum.map(fn message -> message.ack_id end)
+    ack_ids = Enum.map(messages, fn message -> message.ack_id end)
 
-    request = AcknowledgeRequest.new(subscription: subscription.id, ack_ids: ack_ids)
+    request = AcknowledgeRequest.new(ack_ids: ack_ids, subscription: subscription.name)
 
-    Client.call(Stub, :acknowledge, request)
+    case Client.send_request(Stub, :acknowledge, request) do
+      {:ok, %Google.Protobuf.Empty{}} -> :ok
+      {:error, error} -> {:error, error}
+    end
   end
 end
