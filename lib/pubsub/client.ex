@@ -6,7 +6,7 @@ defmodule Pubsub.Client do
           emulator?: boolean()
         }
 
-  defstruct [:channel, :emulator?]
+  defstruct channel: nil, emulator?: false
 
   def start_link(init_opts) do
     GenServer.start_link(__MODULE__, init_opts)
@@ -28,34 +28,33 @@ defmodule Pubsub.Client do
 
   @impl true
   def init(_init_opts) do
-    opts = Application.get_env(:google_grpc_pubsub, __MODULE__, [])
+    emulator = Application.get_env(:google_grpc_pubsub, :emulator)
 
-    emulator? = Keyword.get(opts, :emulator, false)
+    case emulator do
+      nil ->
+        ssl_opts =
+          Application.get_env(:google_grpc_pubsub, :ssl_opts)
+          |> Keyword.put(:cacerts, :certifi.cacerts())
 
-    if emulator? do
-      host = Keyword.fetch!(opts, :host)
-      port = Keyword.fetch!(opts, :port)
+        credentials = GRPC.Credential.new(ssl: ssl_opts)
 
-      GRPC.Stub.connect(host, port,
-        adapter_opts: %{
-          http2_opts: %{keepalive: :infinity}
-        }
-      )
-    else
-      ssl_opts = opts |> Keyword.get(:ssl_opts, []) |> Keyword.merge(cacerts: :certifi.cacerts())
+        GRPC.Stub.connect("pubsub.googleapis.com", 443,
+          cred: credentials,
+          adapter_opts: %{
+            http2_opts: %{keepalive: :infinity}
+          }
+        )
 
-      credentials = GRPC.Credential.new(ssl: ssl_opts)
-
-      GRPC.Stub.connect("pubsub.googleapis.com", 443,
-        cred: credentials,
-        adapter_opts: %{
-          http2_opts: %{keepalive: :infinity}
-        }
-      )
+      {host, port} when is_binary(host) and is_number(port) ->
+        GRPC.Stub.connect(host, port,
+          adapter_opts: %{
+            http2_opts: %{keepalive: :infinity}
+          }
+        )
     end
     |> case do
       {:ok, channel} ->
-        {:ok, %__MODULE__{channel: channel, emulator?: emulator?}}
+        {:ok, %__MODULE__{channel: channel, emulator?: not is_nil(emulator)}}
 
       {:error, error} ->
         {:error, error}

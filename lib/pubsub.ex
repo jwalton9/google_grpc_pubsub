@@ -1,6 +1,8 @@
 defmodule Pubsub do
   @moduledoc """
-  Documentation for `Pubsub`.
+  Pubsub is split into two parts:
+  - `Pubsub.Subscriber` - Starts a stream of pubsub messages and passes them to the provided handler.
+  - `Pubsub.Publisher` - Publishes messages to a pubsub topic.
   """
   use Application
 
