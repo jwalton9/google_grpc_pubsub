@@ -5,10 +5,15 @@ defmodule Pubsub do
   - `Pubsub.Subscription` - Pull messages from a subscription
   - `Pubsub.Subscriber` - Starts a stream of pubsub messages and passes them to the provided handler.
   """
-  use Application
+
+  use Supervisor
+
+  def start_link(init) do
+    Supervisor.start_link(__MODULE__, init, name: __MODULE__)
+  end
 
   @impl true
-  def start(_type, _opts) do
+  def init(_opts) do
     pool_config = [
       name: {:local, :grpc_connection_pool},
       worker_module: Pubsub.Connection,
@@ -19,6 +24,6 @@ defmodule Pubsub do
       :poolboy.child_spec(:grpc_connection_pool, pool_config)
     ]
 
-    Supervisor.start_link(children, strategy: :one_for_one, name: __MODULE__)
+    Supervisor.init(children, strategy: :one_for_one)
   end
 end
