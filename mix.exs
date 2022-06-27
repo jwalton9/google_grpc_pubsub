@@ -4,7 +4,7 @@ defmodule Pubsub.MixProject do
   def project do
     [
       app: :google_grpc_pubsub,
-      version: "0.1.0",
+      version: "0.1.2",
       elixir: "~> 1.12",
       start_permanent: Mix.env() == :prod,
       deps: deps(),
@@ -13,6 +13,9 @@ defmodule Pubsub.MixProject do
       docs: [
         main: "readme",
         extras: ["README.md"]
+      ],
+      package: [
+        licences: ["MIT"]
       ]
     ]
   end
@@ -29,7 +32,6 @@ defmodule Pubsub.MixProject do
   defp deps do
     [
       {:certifi, "~> 2.9"},
-      {:cowlib, "~> 2.9", override: true},
       {:dialyxir, "~> 1.0", only: :dev, runtime: false},
       {:ex_doc, "~> 0.27", only: :dev, runtime: false},
       {:goth, "~> 1.2"},
