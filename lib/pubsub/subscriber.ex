@@ -3,10 +3,7 @@ defmodule Pubsub.Subscriber do
 
   alias Google.Pubsub.V1.{
     Subscriber.Stub,
-    Subscription,
-    PullRequest,
-    PullResponse,
-    AcknowledgeRequest
+    Subscription
   }
 
   @type t :: %__MODULE__{
@@ -111,8 +108,7 @@ defmodule Pubsub.Subscriber do
               Keyword.get(request_opts, :stream_ack_deadline_seconds, 10)
           )
 
-        Client.get()
-        |> Stub.streaming_pull(timeout: :infinity)
+        Client.send_request(&Stub.streaming_pull/2, timeout: :infinity)
         |> GRPC.Stub.send_request(request)
       end
 
@@ -158,37 +154,6 @@ defmodule Pubsub.Subscriber do
 
         GRPC.Stub.send_request(stream, request)
       end
-    end
-  end
-
-  @spec pull(Subscription.t(), max_messages: number()) :: {:ok, [Message.t()]} | {:error, any()}
-  def pull(%Subscription{name: name}, opts \\ []) do
-    request =
-      PullRequest.new(
-        subscription: name,
-        max_messages: Keyword.get(opts, :max_messages, 10)
-      )
-
-    Client.send_request(Stub, :pull, request, timeout: 30_000)
-    |> case do
-      {:ok, %PullResponse{received_messages: received_messages}} ->
-        {:ok, Enum.map(received_messages, &Message.new/1)}
-
-      {:error, error} ->
-        {:error, error}
-    end
-  end
-
-  @spec acknowledge(Subscription.t(), [Message.t()]) ::
-          :ok | {:error, any()}
-  def acknowledge(subscription, messages) do
-    ack_ids = Enum.map(messages, fn message -> message.ack_id end)
-
-    request = AcknowledgeRequest.new(ack_ids: ack_ids, subscription: subscription.name)
-
-    case Client.send_request(Stub, :acknowledge, request) do
-      {:ok, %Google.Protobuf.Empty{}} -> :ok
-      {:error, error} -> {:error, error}
     end
   end
 end
