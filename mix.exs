@@ -1,4 +1,4 @@
-defmodule Pubsub.MixProject do
+defmodule Google.Pubsub.MixProject do
   use Mix.Project
 
   def project do
@@ -10,20 +10,15 @@ defmodule Pubsub.MixProject do
       deps: deps(),
       source_url: "https://github.com/jwalton9/google_grpc_pubsub",
       description: "Elixir Library for interacting with Google Pubsub over GRPC",
-      docs: [
-        main: "readme",
-        extras: ["README.md"]
-      ],
-      package: [
-        licences: ["MIT"]
-      ]
+      docs: docs(),
+      package: package()
     ]
   end
 
   # Run "mix help compile.app" to learn about applications.
   def application do
     [
-      mod: {Pubsub, []},
+      mod: {Google.Pubsub, []},
       extra_applications: [:logger]
     ]
   end
@@ -39,6 +34,21 @@ defmodule Pubsub.MixProject do
       {:poison, "~> 5.0"},
       {:poolboy, "~> 1.5.1"},
       {:protobuf, "~> 0.10"}
+    ]
+  end
+
+  defp docs() do
+    [
+      main: "readme",
+      extras: ["README.md"]
+    ]
+  end
+
+  defp package() do
+    [
+      maintainers: ["Joe Walton"],
+      licenses: ["MIT"],
+      links: %{"GitHub" => "https://github.com/jwalton9/google_grpc_pubsub"}
     ]
   end
 end

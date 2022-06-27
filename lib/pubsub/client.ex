@@ -1,4 +1,6 @@
-defmodule Pubsub.Client do
+defmodule Google.Pubsub.Client do
+  alias Google.Pubsub.Connection
+
   @spec send_request(function()) :: {:ok, any()} | {:error, any()}
   def send_request(fun), do: send_request(fun, [])
 
@@ -9,7 +11,7 @@ defmodule Pubsub.Client do
     :poolboy.transaction(
       :grpc_connection_pool,
       fn pid ->
-        Pubsub.Connection.get(pid)
+        Connection.get(pid)
         |> fun.(request_opts(opts))
       end,
       timeout

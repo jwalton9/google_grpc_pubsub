@@ -1,18 +1,12 @@
-defmodule Pubsub.Subscriber do
-  alias Pubsub.{Client, Message}
-
-  alias Google.Pubsub.V1.{
-    Subscriber.Stub,
-    Subscription
-  }
+defmodule Google.Pubsub.Subscriber do
+  alias Google.Pubsub.{Message, Subscription}
 
   @type t :: %__MODULE__{
           subscription: Subscription.t(),
-          request_opts: Keyword.t(),
-          worker: pid()
+          request_opts: Keyword.t()
         }
 
-  defstruct subscription: nil, request_opts: [], worker: nil
+  defstruct subscription: nil, request_opts: []
 
   @callback handle_messages([Message.t()]) :: [Message.t()]
 
@@ -22,13 +16,10 @@ defmodule Pubsub.Subscriber do
 
       require Logger
 
-      import Pubsub.Message, only: [ack: 1]
-
-      alias Pubsub.Subscriber
+      alias Google.Pubsub.{Message, Subscriber, Subscription}
 
       alias Google.Pubsub.V1.{
         Subscriber.Stub,
-        Subscription,
         StreamingPullRequest,
         StreamingPullResponse
       }
@@ -52,7 +43,7 @@ defmodule Pubsub.Subscriber do
 
         {subscription_opts, request_opts} = Keyword.split(init_arg, [:subscription, :project])
 
-        case Pubsub.Subscription.get(
+        case Subscription.get(
                subscription_opts[:project],
                subscription_opts[:subscription]
              ) do
@@ -91,7 +82,7 @@ defmodule Pubsub.Subscriber do
 
       @impl true
       def handle_info(type, struct) do
-        Logger.debug("Pubsub.Subscriber: handle_info: #{inspect(type)}")
+        Logger.debug("Google.Pubsub.Subscriber: handle_info: #{inspect(type)}")
         {:stop, :unknown, struct}
       end
 
@@ -136,10 +127,10 @@ defmodule Pubsub.Subscriber do
           {:ok, %StreamingPullResponse{received_messages: received_messages}}, stream ->
             ack_ids =
               received_messages
-              |> Enum.map(&Pubsub.Message.new/1)
+              |> Enum.map(&Message.new!/1)
               |> handle_messages()
-              |> Enum.filter(fn %Pubsub.Message{acked?: acked} -> acked end)
-              |> Enum.map(fn %Pubsub.Message{ack_id: ack_id} -> ack_id end)
+              |> Enum.filter(fn %Message{acked?: acked} -> acked end)
+              |> Enum.map(fn %Message{ack_id: ack_id} -> ack_id end)
 
             ack(stream, ack_ids)
 

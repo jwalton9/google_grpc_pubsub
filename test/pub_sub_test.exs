@@ -1,8 +1,8 @@
-defmodule PubsubTest do
+defmodule Google.PubSubTest do
   use ExUnit.Case
-  doctest Pubsub
+  doctest Google.Pubsub
 
   test "greets the world" do
-    assert Pubsub.hello() == :world
+    assert Google.Pubsub.hello() == :world
   end
 end

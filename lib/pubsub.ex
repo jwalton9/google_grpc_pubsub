@@ -1,4 +1,4 @@
-defmodule Pubsub do
+defmodule Google.Pubsub do
   @moduledoc """
   Pubsub is split into two parts:
   - `Pubsub.Topic` - Publish messages to a topic
@@ -27,7 +27,7 @@ defmodule Pubsub do
   defp pool_config() do
     [
       name: {:local, pool_name()},
-      worker_module: Pubsub.Connection,
+      worker_module: Google.Pubsub.Connection,
       size: Application.get_env(:google_grpc_pubsub, :pool_size, 10)
     ]
   end

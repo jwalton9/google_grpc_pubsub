@@ -1,4 +1,4 @@
-defmodule Pubsub.Connection do
+defmodule Google.Pubsub.Connection do
   use GenServer
 
   def start_link(init) do

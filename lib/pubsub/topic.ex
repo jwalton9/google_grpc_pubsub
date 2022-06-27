@@ -1,5 +1,5 @@
-defmodule Pubsub.Topic do
-  alias Pubsub.Client
+defmodule Google.Pubsub.Topic do
+  alias Google.Pubsub.{Client, Message}
 
   alias Google.Pubsub.V1.{
     Publisher.Stub,
@@ -10,16 +10,18 @@ defmodule Pubsub.Topic do
     PublishResponse
   }
 
+  @type t :: Topic.t()
+
   @type opts :: [project: String.t(), topic: String.t()]
 
-  @spec create(opts()) :: {:ok, Topic.t()} | {:error, any()}
+  @spec create(opts()) :: {:ok, t()} | {:error, any()}
   def create(opts) do
     request = Topic.new(name: id(opts))
 
     Client.send_request(request, &Stub.create_topic/3)
   end
 
-  @spec get(opts()) :: {:ok, Topic.t()} | {:error, any()}
+  @spec get(opts()) :: {:ok, t()} | {:error, any()}
   def get(opts) do
     request = GetTopicRequest.new(topic: id(opts))
 
@@ -31,20 +33,16 @@ defmodule Pubsub.Topic do
     Path.join(["projects", Keyword.fetch!(opts, :project), "topics", Keyword.fetch!(opts, :topic)])
   end
 
-  @spec publish(Topic.t(), String.t() | map() | [String.t() | map()]) :: :ok | {:error, any()}
+  @spec publish(t(), [Message.t()]) :: :ok | {:error, any()}
   def publish(topic, message) when not is_list(message),
     do: publish(topic, [message])
 
   def publish(topic, messages) when is_list(messages) do
     messages =
-      Enum.map(messages, fn
-        message when is_binary(message) ->
-          message
-
-        message when is_map(message) ->
-          Poison.encode!(message)
+      messages
+      |> Enum.map(fn %Message{data: data} when is_binary(data) ->
+        PubsubMessage.new(data: data)
       end)
-      |> Enum.map(fn data -> PubsubMessage.new(data: data) end)
 
     request = PublishRequest.new(topic: topic.name, messages: messages)
 

@@ -1,5 +1,5 @@
-defmodule Pubsub.Subscription do
-  alias Pubsub.{Client, Topic, Message}
+defmodule Google.Pubsub.Subscription do
+  alias Google.Pubsub.{Client, Topic, Message}
 
   alias Google.Pubsub.V1.{
     Subscriber.Stub,
@@ -10,10 +10,12 @@ defmodule Pubsub.Subscription do
     AcknowledgeRequest
   }
 
+  @type t :: Subscription.t()
+
   @type opts :: [project: String.t(), subscription: String.t()]
 
   @spec create(project: String.t(), subscription: String.t(), topic: String.t()) ::
-          {:ok, Subscription.t()} | {:error, any()}
+          {:ok, t()} | {:error, any()}
   def create(opts) do
     subscription =
       Subscription.new(
@@ -25,18 +27,21 @@ defmodule Pubsub.Subscription do
   end
 
   @spec get(opts()) ::
-          {:ok, Subscription.t()} | {:error, any()}
+          {:ok, t()} | {:error, any()}
   def get(opts) do
     request = GetSubscriptionRequest.new(subscription: id(opts))
 
     Client.send_request(request, &Stub.get_subscription/3)
   end
 
-  @spec delete(Subscription.t()) :: Google.Protobuf.Empty.t()
+  @spec delete(t()) :: :ok | {:error, any()}
   def delete(%Subscription{name: name}) do
     request = Google.Pubsub.V1.DeleteSubscriptionRequest.new(subscription: name)
 
-    Client.send_request(request, &Stub.delete_subscription/3)
+    case Client.send_request(request, &Stub.delete_subscription/3) do
+      {:ok, %Google.Protobuf.Empty{}} -> :ok
+      {:error, error} -> {:error, error}
+    end
   end
 
   @spec id(opts()) :: String.t()
@@ -49,7 +54,7 @@ defmodule Pubsub.Subscription do
     ])
   end
 
-  @spec pull(Subscription.t(), max_messages: number()) :: {:ok, [Message.t()]} | {:error, any()}
+  @spec pull(t(), max_messages: number()) :: {:ok, [Message.t()]} | {:error, any()}
   def pull(%Subscription{name: name}, opts \\ []) do
     request =
       PullRequest.new(
@@ -60,14 +65,14 @@ defmodule Pubsub.Subscription do
     Client.send_request(request, &Stub.pull/3)
     |> case do
       {:ok, %PullResponse{received_messages: received_messages}} ->
-        {:ok, Enum.map(received_messages, &Message.new/1)}
+        {:ok, Enum.map(received_messages, &Message.new!/1)}
 
       {:error, error} ->
         {:error, error}
     end
   end
 
-  @spec acknowledge(Subscription.t(), [Message.t()]) ::
+  @spec acknowledge(t(), [Message.t()]) ::
           :ok | {:error, any()}
   def acknowledge(subscription, messages) do
     ack_ids = Enum.map(messages, fn message -> message.ack_id end)
