@@ -20,6 +20,7 @@ defmodule Pubsub.MixProject do
   # Run "mix help compile.app" to learn about applications.
   def application do
     [
+      mod: {Pubsub, []},
       extra_applications: [:logger]
     ]
   end
@@ -29,7 +30,7 @@ defmodule Pubsub.MixProject do
     [
       {:certifi, "~> 2.9"},
       {:cowlib, "~> 2.9", override: true},
-      {:dialyxir, "~> 1.0", only: [:dev], runtime: false},
+      {:dialyxir, "~> 1.0", only: :dev, runtime: false},
       {:ex_doc, "~> 0.27", only: :dev, runtime: false},
       {:goth, "~> 1.2"},
       {:grpc, "~> 0.3"},

@@ -6,24 +6,33 @@ defmodule Pubsub do
   - `Pubsub.Subscriber` - Starts a stream of pubsub messages and passes them to the provided handler.
   """
 
-  use Supervisor
+  use Application
 
-  def start_link(init) do
-    Supervisor.start_link(__MODULE__, init, name: __MODULE__)
+  def start() do
+    Supervisor.start_child(__MODULE__, pool_child_spec())
   end
 
-  @impl true
-  def init(_opts) do
-    pool_config = [
-      name: {:local, :grpc_connection_pool},
+  def start(_type, _opts) do
+    start_pool = Application.get_env(:google_grpc_pubsub, :start_pool, true)
+
+    children = if start_pool, do: [pool_child_spec()], else: []
+
+    Supervisor.start_link(children, strategy: :one_for_one, name: __MODULE__)
+  end
+
+  defp pool_name() do
+    :grpc_connection_pool
+  end
+
+  defp pool_config() do
+    [
+      name: {:local, pool_name()},
       worker_module: Pubsub.Connection,
       size: Application.get_env(:google_grpc_pubsub, :pool_size, 10)
     ]
+  end
 
-    children = [
-      :poolboy.child_spec(:grpc_connection_pool, pool_config)
-    ]
-
-    Supervisor.init(children, strategy: :one_for_one)
+  defp pool_child_spec() do
+    :poolboy.child_spec(:grpc_connection_pool, pool_config())
   end
 end
