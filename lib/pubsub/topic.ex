@@ -18,14 +18,14 @@ defmodule Google.Pubsub.Topic do
   def create(opts) do
     request = Topic.new(name: id(opts))
 
-    Client.send_request(request, &Stub.create_topic/3)
+    client().send_request(request, &Stub.create_topic/3)
   end
 
   @spec get(opts()) :: {:ok, t()} | {:error, any()}
   def get(opts) do
     request = GetTopicRequest.new(topic: id(opts))
 
-    Client.send_request(request, &Stub.get_topic/3)
+    client().send_request(request, &Stub.get_topic/3)
   end
 
   @spec id(opts()) :: String.t()
@@ -46,9 +46,11 @@ defmodule Google.Pubsub.Topic do
 
     request = PublishRequest.new(topic: topic.name, messages: messages)
 
-    case Client.send_request(request, &Stub.publish/3) do
+    case client().send_request(request, &Stub.publish/3) do
       {:ok, %PublishResponse{}} -> :ok
       {:error, error} -> {:error, error}
     end
   end
+
+  defp client(), do: Application.get_env(:google_grpc_pubsub, :client, Client)
 end

@@ -23,7 +23,7 @@ defmodule Google.Pubsub.Subscription do
         topic: Topic.id(opts)
       )
 
-    Client.send_request(subscription, &Stub.create_subscription/3)
+    client().send_request(subscription, &Stub.create_subscription/3)
   end
 
   @spec get(opts()) ::
@@ -31,14 +31,14 @@ defmodule Google.Pubsub.Subscription do
   def get(opts) do
     request = GetSubscriptionRequest.new(subscription: id(opts))
 
-    Client.send_request(request, &Stub.get_subscription/3)
+    client().send_request(request, &Stub.get_subscription/3)
   end
 
   @spec delete(t()) :: :ok | {:error, any()}
   def delete(%Subscription{name: name}) do
     request = Google.Pubsub.V1.DeleteSubscriptionRequest.new(subscription: name)
 
-    case Client.send_request(request, &Stub.delete_subscription/3) do
+    case client().send_request(request, &Stub.delete_subscription/3) do
       {:ok, %Google.Protobuf.Empty{}} -> :ok
       {:error, error} -> {:error, error}
     end
@@ -62,7 +62,7 @@ defmodule Google.Pubsub.Subscription do
         max_messages: Keyword.get(opts, :max_messages, 10)
       )
 
-    Client.send_request(request, &Stub.pull/3)
+    client().send_request(request, &Stub.pull/3)
     |> case do
       {:ok, %PullResponse{received_messages: received_messages}} ->
         {:ok, Enum.map(received_messages, &Message.new!/1)}
@@ -72,16 +72,20 @@ defmodule Google.Pubsub.Subscription do
     end
   end
 
-  @spec acknowledge(t(), [Message.t()]) ::
+  @spec acknowledge(t(), Message.t() | [Message.t()]) ::
           :ok | {:error, any()}
-  def acknowledge(subscription, messages) do
+  def acknowledge(subscription, messages) when is_list(messages) do
     ack_ids = Enum.map(messages, fn message -> message.ack_id end)
 
     request = AcknowledgeRequest.new(ack_ids: ack_ids, subscription: subscription.name)
 
-    case Client.send_request(request, &Stub.acknowledge/3) do
+    case client().send_request(request, &Stub.acknowledge/3) do
       {:ok, %Google.Protobuf.Empty{}} -> :ok
       {:error, error} -> {:error, error}
     end
   end
+
+  def acknowledge(subscription, message), do: acknowledge(subscription, [message])
+
+  defp client(), do: Application.get_env(:google_grpc_pubsub, :client, Client)
 end

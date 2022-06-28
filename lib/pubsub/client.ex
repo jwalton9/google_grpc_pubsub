@@ -1,6 +1,14 @@
 defmodule Google.Pubsub.Client do
   alias Google.Pubsub.Connection
 
+  @callback send_request(function()) :: {:ok, any()} | {:error, any()}
+
+  @callback send_request(function(), Keyword.t()) :: {:ok, any()} | {:error, any()}
+
+  @callback send_request(any(), function()) :: {:ok, any()} | {:error, any()}
+
+  @callback send_request(any(), function(), Keyword.t()) :: {:ok, any()} | {:error, any()}
+
   @spec send_request(function()) :: {:ok, any()} | {:error, any()}
   def send_request(fun), do: send_request(fun, [])
 

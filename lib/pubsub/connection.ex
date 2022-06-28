@@ -5,7 +5,7 @@ defmodule Google.Pubsub.Connection do
     GenServer.start_link(__MODULE__, init)
   end
 
-  @spec get(pid()) :: {GRPC.Channel.t(), Keyword.t()}
+  @spec get(pid()) :: GRPC.Channel.t()
 
   def get(pid) do
     GenServer.call(pid, :get_connection)
@@ -45,7 +45,7 @@ defmodule Google.Pubsub.Connection do
     case emulator do
       nil ->
         ssl_opts =
-          Application.get_env(:google_grpc_pubsub, :ssl_opts)
+          Application.get_env(:google_grpc_pubsub, :ssl_opts, [])
           |> Keyword.put(:cacerts, :certifi.cacerts())
 
         credentials = GRPC.Credential.new(ssl: ssl_opts)
