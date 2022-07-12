@@ -36,9 +36,13 @@ defmodule Google.Pubsub.Client do
 
   @spec request_opts(Keyword.t()) :: Keyword.t()
   defp request_opts(opts) do
+    opts = Keyword.put(opts, :content_type, "application/grpc")
+
     case auth_token() do
       {:ok, %{token: token, type: token_type}} ->
-        Keyword.put(opts, :metadata, %{"authorization" => "#{token_type} #{token}"})
+        Keyword.put(opts, :metadata, %{
+          "authorization" => "#{token_type} #{token}"
+        })
 
       _ ->
         opts

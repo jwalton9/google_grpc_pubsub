@@ -50,7 +50,7 @@ defmodule Google.Pubsub.Connection do
 
         credentials = GRPC.Credential.new(ssl: ssl_opts)
 
-        GRPC.Stub.connect("pubsub.googleapis.com", 443,
+        GRPC.Stub.connect("pubsub.googleapis.com:443",
           cred: credentials,
           adapter_opts: %{
             http2_opts: %{keepalive: :infinity}
