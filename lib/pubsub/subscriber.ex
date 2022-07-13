@@ -16,7 +16,7 @@ defmodule Google.Pubsub.Subscriber do
 
       require Logger
 
-      alias Google.Pubsub.{Message, Subscriber, Subscription}
+      alias Google.Pubsub.{Message, Subscriber, Subscription, Client}
 
       alias Google.Pubsub.V1.{
         Subscriber.Stub,
@@ -44,8 +44,8 @@ defmodule Google.Pubsub.Subscriber do
         {subscription_opts, request_opts} = Keyword.split(init_arg, [:subscription, :project])
 
         case Subscription.get(
-               subscription_opts[:project],
-               subscription_opts[:subscription]
+               project: subscription_opts[:project],
+               subscription: subscription_opts[:subscription]
              ) do
           {:ok, subscription} ->
             {:ok, %Subscriber{subscription: subscription, request_opts: request_opts}}
@@ -129,7 +129,6 @@ defmodule Google.Pubsub.Subscriber do
               received_messages
               |> Enum.map(&Message.new!/1)
               |> handle_messages()
-              |> Enum.filter(fn %Message{acked?: acked} -> acked end)
               |> Enum.map(fn %Message{ack_id: ack_id} -> ack_id end)
 
             ack(stream, ack_ids)
