@@ -2,11 +2,8 @@ defmodule Google.Pubsub.Topic do
   alias Google.Pubsub.{Client, Message}
 
   alias Google.Pubsub.V1.{
-    Publisher.Stub,
     Topic,
     PubsubMessage,
-    GetTopicRequest,
-    PublishRequest,
     PublishResponse
   }
 
@@ -16,16 +13,12 @@ defmodule Google.Pubsub.Topic do
 
   @spec create(opts()) :: {:ok, t()} | {:error, any()}
   def create(opts) do
-    request = Topic.new(name: id(opts))
-
-    client().send_request(request, &Stub.create_topic/3)
+    opts |> id() |> client().create_topic()
   end
 
   @spec get(opts()) :: {:ok, t()} | {:error, any()}
   def get(opts) do
-    request = GetTopicRequest.new(topic: id(opts))
-
-    client().send_request(request, &Stub.get_topic/3)
+    opts |> id() |> client().get_topic()
   end
 
   @spec id(opts()) :: String.t()
@@ -44,9 +37,7 @@ defmodule Google.Pubsub.Topic do
         PubsubMessage.new(data: data)
       end)
 
-    request = PublishRequest.new(topic: topic.name, messages: messages)
-
-    case client().send_request(request, &Stub.publish/3) do
+    case client().publish(topic.name, messages) do
       {:ok, %PublishResponse{}} -> :ok
       {:error, error} -> {:error, error}
     end

@@ -1,14 +1,7 @@
 defmodule Google.Pubsub.Subscription do
   alias Google.Pubsub.{Client, Topic, Message}
 
-  alias Google.Pubsub.V1.{
-    Subscriber.Stub,
-    Subscription,
-    GetSubscriptionRequest,
-    PullRequest,
-    PullResponse,
-    AcknowledgeRequest
-  }
+  alias Google.Pubsub.V1.{Subscription, PullResponse}
 
   @type t :: Subscription.t()
 
@@ -17,28 +10,23 @@ defmodule Google.Pubsub.Subscription do
   @spec create(project: String.t(), subscription: String.t(), topic: String.t()) ::
           {:ok, t()} | {:error, any()}
   def create(opts) do
-    subscription =
-      Subscription.new(
-        name: id(opts),
-        topic: Topic.id(opts)
-      )
+    topic_id = Topic.id(opts)
+    subscription_id = id(opts)
 
-    client().send_request(subscription, &Stub.create_subscription/3)
+    client().create_subscription(topic_id, subscription_id)
   end
 
   @spec get(opts()) ::
           {:ok, t()} | {:error, any()}
   def get(opts) do
-    request = GetSubscriptionRequest.new(subscription: id(opts))
-
-    client().send_request(request, &Stub.get_subscription/3)
+    opts |> id() |> client().get_subscription()
   end
 
   @spec delete(t()) :: :ok | {:error, any()}
   def delete(%Subscription{name: name}) do
-    request = Google.Pubsub.V1.DeleteSubscriptionRequest.new(subscription: name)
-
-    case client().send_request(request, &Stub.delete_subscription/3) do
+    name
+    |> client().delete_subscription()
+    |> case do
       {:ok, %Google.Protobuf.Empty{}} -> :ok
       {:error, error} -> {:error, error}
     end
@@ -56,14 +44,9 @@ defmodule Google.Pubsub.Subscription do
 
   @spec pull(t(), max_messages: number()) :: {:ok, [Message.t()]} | {:error, any()}
   def pull(%Subscription{name: name}, opts \\ []) do
-    request =
-      PullRequest.new(
-        subscription: name,
-        max_messages: Keyword.get(opts, :max_messages, 10)
-      )
+    max_messages = Keyword.get(opts, :max_messages, 10)
 
-    client().send_request(request, &Stub.pull/3)
-    |> case do
+    case client().pull(name, max_messages) do
       {:ok, %PullResponse{received_messages: received_messages}} ->
         {:ok, Enum.map(received_messages, &Message.new!/1)}
 
@@ -74,12 +57,10 @@ defmodule Google.Pubsub.Subscription do
 
   @spec acknowledge(t(), Message.t() | [Message.t()]) ::
           :ok | {:error, any()}
-  def acknowledge(subscription, messages) when is_list(messages) do
+  def acknowledge(%Subscription{name: name}, messages) when is_list(messages) do
     ack_ids = Enum.map(messages, fn message -> message.ack_id end)
 
-    request = AcknowledgeRequest.new(ack_ids: ack_ids, subscription: subscription.name)
-
-    case client().send_request(request, &Stub.acknowledge/3) do
+    case client().acknowledge(name, ack_ids) do
       {:ok, %Google.Protobuf.Empty{}} -> :ok
       {:error, error} -> {:error, error}
     end

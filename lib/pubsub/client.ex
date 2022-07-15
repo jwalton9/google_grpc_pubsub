@@ -1,37 +1,94 @@
 defmodule Google.Pubsub.Client do
   alias Google.Pubsub.Connection
 
-  @callback send_request(function()) :: {:ok, any()} | {:error, any()}
+  alias Google.Pubsub.V1.{
+    Topic,
+    Publisher,
+    GetTopicRequest,
+    PublishRequest,
+    PubsubMessage,
+    PublishResponse,
+    Subscription,
+    Subscriber,
+    GetSubscriptionRequest,
+    DeleteSubscriptionRequest,
+    PullRequest,
+    StreamingPullRequest,
+    AcknowledgeRequest
+  }
 
-  @callback send_request(function(), Keyword.t()) :: {:ok, any()} | {:error, any()}
+  @spec create_topic(String.t()) :: {:ok, Topic.t()} | {:error, any()}
+  def create_topic(id) do
+    Topic.new(name: id)
+    |> send_request(&Publisher.Stub.create_topic/3)
+  end
 
-  @callback send_request(any(), function()) :: {:ok, any()} | {:error, any()}
+  @spec get_topic(String.t()) :: {:ok, Topic.t()} | {:error, any()}
+  def get_topic(id) do
+    GetTopicRequest.new(topic: id)
+    |> send_request(&Publisher.Stub.get_topic/3)
+  end
 
-  @callback send_request(any(), function(), Keyword.t()) :: {:ok, any()} | {:error, any()}
+  @spec publish(String.t(), [PubsubMessage.t()]) :: {:ok, PublishResponse.t()} | {:error, any()}
+  def publish(topic_id, messages) do
+    PublishRequest.new(topic: topic_id, messages: messages)
+    |> send_request(&Publisher.Stub.publish/3)
+  end
 
-  @spec send_request(function()) :: {:ok, any()} | {:error, any()}
-  def send_request(fun), do: send_request(fun, [])
+  @spec create_subscription(String.t(), String.t()) :: {:ok, Subscription.t()} | {:error, any()}
+  def create_subscription(topic_id, subscription_id) do
+    Subscription.new(
+      topic: topic_id,
+      name: subscription_id
+    )
+    |> send_request(&Subscriber.Stub.create_subscription/3)
+  end
 
-  @spec send_request(function(), Keyword.t()) :: {:ok, any()} | {:error, any()}
-  def send_request(fun, opts) when is_function(fun, 2) do
+  @spec get_subscription(String.t()) :: {:ok, Subscription.t()} | {:error, any()}
+  def get_subscription(subscription_id) do
+    GetSubscriptionRequest.new(subscription: subscription_id)
+    |> send_request(&Subscriber.Stub.get_subscription/3)
+  end
+
+  def delete_subscription(subscription_id) do
+    DeleteSubscriptionRequest.new(subscription: subscription_id)
+    |> send_request(&Subscriber.Stub.delete_subscription/3)
+  end
+
+  def pull(subscription_id, max_messages \\ 10) do
+    PullRequest.new(
+      subscription: subscription_id,
+      max_messages: max_messages
+    )
+    |> send_request(&Subscriber.Stub.pull/3)
+  end
+
+  def streaming_pull(subscription_id, ack_deadline) do
+    StreamingPullRequest.new(
+      subscription: subscription_id,
+      stream_ack_deadline_seconds: ack_deadline
+    )
+    |> send_request(&Subscriber.Stub.streaming_pull/2, timeout: :infinity)
+  end
+
+  def acknowledge(subscription_id, ack_ids) do
+    AcknowledgeRequest.new(ack_ids: ack_ids, subscription: subscription_id)
+    |> send_request(&Subscriber.Stub.acknowledge/3)
+  end
+
+  @spec send_request(any(), function()) :: {:ok, any()} | {:error, any()}
+  @spec send_request(any(), function(), Keyword.t()) :: {:ok, any()} | {:error, any()}
+  defp send_request(req, fun, opts \\ []) when is_function(fun, 2) do
     {timeout, opts} = Keyword.pop(opts, :conn_timeout, 10_000)
 
     :poolboy.transaction(
       :grpc_connection_pool,
       fn pid ->
         Connection.get(pid)
-        |> fun.(request_opts(opts))
+        |> fun.(req, request_opts(opts))
       end,
       timeout
     )
-  end
-
-  @spec send_request(any(), function()) :: {:ok, any()} | {:error, any()}
-  def send_request(req, fun) when is_function(fun, 3), do: send_request(req, fun, [])
-
-  @spec send_request(any(), function(), Keyword.t()) :: {:ok, any()} | {:error, any()}
-  def send_request(req, fun, opts) when is_function(fun, 3) do
-    send_request(fn channel, opts -> fun.(channel, req, opts) end, opts)
   end
 
   @spec request_opts(Keyword.t()) :: Keyword.t()

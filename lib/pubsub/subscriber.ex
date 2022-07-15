@@ -1,5 +1,5 @@
 defmodule Google.Pubsub.Subscriber do
-  alias Google.Pubsub.{Message, Subscription}
+  alias Google.Pubsub.{Message, Subscription, Client}
 
   @type t :: %__MODULE__{
           subscription: Subscription.t(),
@@ -16,7 +16,7 @@ defmodule Google.Pubsub.Subscriber do
 
       require Logger
 
-      alias Google.Pubsub.{Message, Subscriber, Subscription, Client}
+      alias Google.Pubsub.{Message, Subscriber, Subscription, Testing}
 
       alias Google.Pubsub.V1.{
         Subscriber.Stub,
@@ -92,14 +92,9 @@ defmodule Google.Pubsub.Subscriber do
 
       @spec create_stream(Subscription.t(), Keyword.t()) :: GRPC.Client.Stream.t()
       defp create_stream(subscription, request_opts) do
-        request =
-          StreamingPullRequest.new(
-            subscription: subscription.name,
-            stream_ack_deadline_seconds:
-              Keyword.get(request_opts, :stream_ack_deadline_seconds, 10)
-          )
+        stream_ack_deadline_seconds = Keyword.get(request_opts, :stream_ack_deadline_seconds, 10)
 
-        Client.send_request(&Stub.streaming_pull/2, timeout: :infinity)
+        Subscriber.client().streaming_pull(subscription.name, stream_ack_deadline_seconds)
         |> GRPC.Stub.send_request(request)
       end
 
@@ -146,4 +141,6 @@ defmodule Google.Pubsub.Subscriber do
       end
     end
   end
+
+  def client(), do: Application.get_env(:google_grpc_pubsub, :client, Client)
 end
