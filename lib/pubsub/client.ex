@@ -13,7 +13,6 @@ defmodule Google.Pubsub.Client do
     GetSubscriptionRequest,
     DeleteSubscriptionRequest,
     PullRequest,
-    StreamingPullRequest,
     AcknowledgeRequest
   }
 
@@ -63,12 +62,8 @@ defmodule Google.Pubsub.Client do
     |> send_request(&Subscriber.Stub.pull/3)
   end
 
-  def streaming_pull(subscription_id, ack_deadline) do
-    StreamingPullRequest.new(
-      subscription: subscription_id,
-      stream_ack_deadline_seconds: ack_deadline
-    )
-    |> send_request(&Subscriber.Stub.streaming_pull/2, timeout: :infinity)
+  def streaming_pull() do
+    stub(&Subscriber.Stub.streaming_pull/2, timeout: :infinity)
   end
 
   def acknowledge(subscription_id, ack_ids) do
@@ -76,18 +71,27 @@ defmodule Google.Pubsub.Client do
     |> send_request(&Subscriber.Stub.acknowledge/3)
   end
 
-  @spec send_request(any(), function()) :: {:ok, any()} | {:error, any()}
-  @spec send_request(any(), function(), Keyword.t()) :: {:ok, any()} | {:error, any()}
-  defp send_request(req, fun, opts \\ []) when is_function(fun, 2) do
+  @spec send_request(function(), Keyword.t()) :: {:ok, any()} | {:error, any()}
+  defp stub(fun, opts) do
     {timeout, opts} = Keyword.pop(opts, :conn_timeout, 10_000)
 
     :poolboy.transaction(
       :grpc_connection_pool,
       fn pid ->
         Connection.get(pid)
-        |> fun.(req, request_opts(opts))
+        |> fun.(request_opts(opts))
       end,
       timeout
+    )
+  end
+
+  @spec send_request(any(), function(), Keyword.t()) :: {:ok, any()} | {:error, any()}
+  defp send_request(req, fun, opts \\ []) do
+    stub(
+      fn conn, req_opts ->
+        fun.(conn, req, req_opts)
+      end,
+      opts
     )
   end
 

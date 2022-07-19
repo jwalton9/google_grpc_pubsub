@@ -92,9 +92,15 @@ defmodule Google.Pubsub.Subscriber do
 
       @spec create_stream(Subscription.t(), Keyword.t()) :: GRPC.Client.Stream.t()
       defp create_stream(subscription, request_opts) do
-        stream_ack_deadline_seconds = Keyword.get(request_opts, :stream_ack_deadline_seconds, 10)
+        stream_ack_deadline_seconds =
+          request =
+          StreamingPullRequest.new(
+            subscription: subscription.name,
+            stream_ack_deadline_seconds:
+              Keyword.get(request_opts, :stream_ack_deadline_seconds, 10)
+          )
 
-        Subscriber.client().streaming_pull(subscription.name, stream_ack_deadline_seconds)
+        Subscriber.client().streaming_pull()
         |> GRPC.Stub.send_request(request)
       end
 
