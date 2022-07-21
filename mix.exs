@@ -11,7 +11,10 @@ defmodule Google.Pubsub.MixProject do
       source_url: "https://github.com/jwalton9/google_grpc_pubsub",
       description: "Elixir Library for interacting with Google Pubsub over GRPC",
       docs: docs(),
-      package: package()
+      package: package(),
+      dialyzer: [
+        plt_add_apps: [:ex_unit]
+      ]
     ]
   end
 
