@@ -25,8 +25,10 @@ defmodule Google.Pubsub.Testing do
     assert_receive({:topic_created, ^topic_id})
   end
 
-  def assert_messages_published(topic_id, messages) do
-    assert_receive({:messages_published, ^topic_id, ^messages})
+  defmacro assert_messages_published(topic_id, messages) do
+    quote do
+      assert_receive({:messages_published, unquote(topic_id), unquote(messages)})
+    end
   end
 
   def assert_subscription_created(topic_id, subscription_id) do
