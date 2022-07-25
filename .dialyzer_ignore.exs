@@ -1,3 +1,3 @@
 [
-  {"", :unknown_type, 0} # GRPC 0.3 doesn't typecheck
+  {"lib/grpc/credential.ex", :unknown_type, 12} # GRPC 0.3 doesn't typecheck
 ]
