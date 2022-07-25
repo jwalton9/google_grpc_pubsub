@@ -71,7 +71,7 @@ defmodule Google.Pubsub.Client do
     |> send_request(&Subscriber.Stub.acknowledge/3)
   end
 
-  @spec send_request(function(), Keyword.t()) :: {:ok, any()} | {:error, any()}
+  @spec stub(function(), Keyword.t()) :: {:ok, any()} | {:error, any()}
   defp stub(fun, opts) do
     {timeout, opts} = Keyword.pop(opts, :conn_timeout, 10_000)
 
