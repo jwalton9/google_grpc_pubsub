@@ -1,6 +1,11 @@
 defmodule Google.Pubsub.Subscriber do
   alias Google.Pubsub.{Message, Subscription, Client}
 
+  alias Google.Pubsub.V1.{
+    StreamingPullRequest,
+    StreamingPullResponse
+  }
+
   @type t :: %__MODULE__{
           subscription: Subscription.t(),
           request_opts: Keyword.t()
@@ -10,19 +15,16 @@ defmodule Google.Pubsub.Subscriber do
 
   @callback handle_messages([Message.t()]) :: [Message.t()]
 
+  @unavailable GRPC.Status.unavailable()
+  @unknown GRPC.Status.unknown()
+
   defmacro __using__(_opts) do
     quote do
       use GenServer
 
       require Logger
 
-      alias Google.Pubsub.{Message, Subscriber, Subscription, Testing}
-
-      alias Google.Pubsub.V1.{
-        Subscriber.Stub,
-        StreamingPullRequest,
-        StreamingPullResponse
-      }
+      alias Google.Pubsub.{Subscriber, Subscription}
 
       @behaviour Subscriber
 
@@ -61,9 +63,9 @@ defmodule Google.Pubsub.Subscriber do
             %Subscriber{subscription: subscription, request_opts: request_opts} = state
           ) do
         subscription
-        |> create_stream(request_opts)
-        |> receive_messages()
-        |> close_stream(subscription)
+        |> Subscriber.create_stream(request_opts)
+        |> Subscriber.receive_messages(&handle_messages/1)
+        |> Subscriber.close_stream(subscription)
 
         schedule_listen()
 
@@ -89,64 +91,76 @@ defmodule Google.Pubsub.Subscriber do
       defp schedule_listen() do
         Process.send_after(self(), :listen, 100)
       end
-
-      @spec create_stream(Subscription.t(), Keyword.t()) :: GRPC.Client.Stream.t()
-      defp create_stream(subscription, request_opts) do
-        stream_ack_deadline_seconds =
-          request =
-          StreamingPullRequest.new(
-            subscription: subscription.name,
-            stream_ack_deadline_seconds:
-              Keyword.get(request_opts, :stream_ack_deadline_seconds, 10)
-          )
-
-        Subscriber.client().streaming_pull()
-        |> GRPC.Stub.send_request(request)
-      end
-
-      @spec close_stream(GRPC.Client.Stream.t(), Subscription.t()) :: GRPC.Client.Stream.t()
-      defp close_stream(stream, subscription) do
-        request = StreamingPullRequest.new(subscription: subscription.name)
-
-        GRPC.Stub.send_request(stream, request, end_stream: true)
-      end
-
-      @spec receive_messages(GRPC.Client.Stream.t()) :: GRPC.Client.Stream.t()
-      defp receive_messages(stream) do
-        case GRPC.Stub.recv(stream, timeout: :infinity) do
-          {:ok, recv} ->
-            process_recv(recv, stream)
-
-          {:error, error} ->
-            raise error
-        end
-      end
-
-      @spec process_recv(Enumerable.t(), GRPC.Client.Stream.t()) :: GRPC.Client.Stream.t()
-      defp process_recv(recv, stream) do
-        Enum.reduce(recv, stream, fn
-          {:ok, %StreamingPullResponse{received_messages: received_messages}}, stream ->
-            ack_ids =
-              received_messages
-              |> Enum.map(&Message.new!/1)
-              |> handle_messages()
-              |> Enum.map(fn %Message{ack_id: ack_id} -> ack_id end)
-
-            ack(stream, ack_ids)
-
-          {:error, error}, _stream ->
-            raise error
-        end)
-      end
-
-      @spec ack(GRPC.Client.Stream.t(), [String.t()]) :: GRPC.Client.Stream.t()
-      defp ack(stream, ack_ids) do
-        request = StreamingPullRequest.new(ack_ids: ack_ids)
-
-        GRPC.Stub.send_request(stream, request)
-      end
     end
   end
 
-  def client(), do: Application.get_env(:google_grpc_pubsub, :client, Client)
+  @spec create_stream(Subscription.t(), Keyword.t()) :: GRPC.Client.Stream.t()
+  def create_stream(subscription, request_opts) do
+    request =
+      StreamingPullRequest.new(
+        subscription: subscription.name,
+        stream_ack_deadline_seconds: Keyword.get(request_opts, :stream_ack_deadline_seconds, 10)
+      )
+
+    client().streaming_pull()
+    |> GRPC.Stub.send_request(request)
+  end
+
+  @spec close_stream(GRPC.Client.Stream.t(), Subscription.t()) :: GRPC.Client.Stream.t()
+  def close_stream(stream, subscription) do
+    request = StreamingPullRequest.new(subscription: subscription.name)
+
+    GRPC.Stub.send_request(stream, request, end_stream: true)
+  end
+
+  @spec receive_messages(GRPC.Client.Stream.t(), function()) :: GRPC.Client.Stream.t()
+  def receive_messages(stream, handle_messages) do
+    case GRPC.Stub.recv(stream, timeout: :infinity) do
+      {:ok, recv} ->
+        process_recv(recv, stream, handle_messages)
+
+      {:error, %GRPC.RPCError{status: @unknown, message: message} = e} ->
+        if expected_error?(message), do: [], else: raise(e)
+
+      {:error, error} ->
+        raise error
+    end
+  end
+
+  @spec process_recv(Enumerable.t(), GRPC.Client.Stream.t(), function()) :: GRPC.Client.Stream.t()
+  defp process_recv(recv, stream, handle_messages) do
+    Enum.reduce(recv, stream, fn
+      {:ok, %StreamingPullResponse{received_messages: received_messages}}, stream ->
+        ack_ids =
+          received_messages
+          |> Enum.map(&Message.new!/1)
+          |> handle_messages.()
+          |> Enum.map(fn %Message{ack_id: ack_id} -> ack_id end)
+
+        ack(stream, ack_ids)
+
+      {:error, %GRPC.RPCError{status: @unavailable}}, stream ->
+        stream
+
+      {:error, %GRPC.RPCError{status: @unknown, message: message} = error}, stream ->
+        if expected_error?(message), do: stream, else: raise(error)
+
+      {:error, error}, _stream ->
+        raise error
+    end)
+  end
+
+  @spec ack(GRPC.Client.Stream.t(), [String.t()]) :: GRPC.Client.Stream.t()
+  defp ack(stream, ack_ids) do
+    request = StreamingPullRequest.new(ack_ids: ack_ids)
+
+    GRPC.Stub.send_request(stream, request)
+  end
+
+  defp client(), do: Application.get_env(:google_grpc_pubsub, :client, Client)
+
+  defp expected_error?(message) do
+    Regex.match?(~r/goaway.*max_age/, message) or
+      Regex.match?(~r/stream_error.*Stream reset by server/, message)
+  end
 end

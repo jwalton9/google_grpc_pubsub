@@ -34,12 +34,6 @@ defmodule Google.Pubsub.Message do
 
   @spec decode!(t()) :: map()
   def decode!(message) do
-    case decode(message) do
-      {:ok, decoded_message} ->
-        decoded_message
-
-      {:error, error} ->
-        raise error
-    end
+    message.data |> Poison.decode!()
   end
 end
