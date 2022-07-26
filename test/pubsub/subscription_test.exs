@@ -22,19 +22,6 @@ defmodule Google.Pubsub.SubscriptionTest do
     end
   end
 
-  describe "get/1" do
-    test "should get a subscription when project and subscription provided" do
-      subscription = %Google.Pubsub.V1.Subscription{
-        name: "projects/test/subscriptions/subscription"
-      }
-
-      assert {:ok, ^subscription} =
-               Subscription.get(project: "test", subscription: "subscription")
-
-      assert_subscription_retrieved("projects/test/subscriptions/subscription")
-    end
-  end
-
   describe "id/1" do
     test "returns a properly formatted id string" do
       assert Subscription.id(project: "my-project", subscription: "test-subscription") ==

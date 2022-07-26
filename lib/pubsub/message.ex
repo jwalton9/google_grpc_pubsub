@@ -23,17 +23,13 @@ defmodule Google.Pubsub.Message do
   end
 
   def new!(data) when is_map(data) do
-    data |> Poison.encode!() |> Base.encode64() |> new!()
+    data |> Poison.encode!() |> new!()
   end
 
   @spec decode(t()) :: {:ok, map()} | {:error, any()}
   def decode(message) do
     message.data
-    |> Base.decode64()
-    |> case do
-      {:ok, data} -> Poison.decode(data)
-      :error -> {:error, "Invalid base64 encoded data: #{inspect(message.data)}"}
-    end
+    |> Poison.decode()
   end
 
   @spec decode!(t()) :: map()
