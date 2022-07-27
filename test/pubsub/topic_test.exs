@@ -1,9 +1,8 @@
 defmodule Google.Pubsub.TopicTest do
   use ExUnit.Case
-  use Google.Pubsub.Testing
+  import Google.Pubsub.Testing
 
   alias Google.Pubsub.{Topic, Message}
-  alias Google.Pubsub.V1.PubsubMessage
 
   describe "create/1" do
     test "should create a topic project and topic provided" do
@@ -40,26 +39,27 @@ defmodule Google.Pubsub.TopicTest do
 
   describe "publish/2" do
     test "publishes single message" do
-      assert Topic.publish(%Google.Pubsub.V1.Topic{name: "projects/test/topics/topic"}, %Message{
-               data: "Hello world"
-             }) == :ok
+      assert Topic.publish(
+               %Google.Pubsub.V1.Topic{name: "projects/test/topics/topic"},
+               Message.new!("Hello world")
+             ) == :ok
 
       assert_messages_published("projects/test/topics/topic", [
-        %PubsubMessage{data: "Hello world"}
+        "Hello world"
       ])
     end
 
     test "publishes multiple messages" do
       assert Topic.publish(%Google.Pubsub.V1.Topic{name: "projects/test/topics/topic"}, [
-               %Message{data: "Hello world"},
-               %Message{data: "Hello world 2"},
-               %Message{data: "Hello world 3"}
+               Message.new!(%{hello: "world"}),
+               Message.new!("Hello world 2"),
+               Message.new!("Hello world 3")
              ]) == :ok
 
       assert_messages_published("projects/test/topics/topic", [
-        %PubsubMessage{data: "Hello world"},
-        %PubsubMessage{data: "Hello world 2"},
-        %PubsubMessage{data: "Hello world 3"}
+        %{"hello" => "world"},
+        "Hello world 2",
+        "Hello world 3"
       ])
     end
   end
