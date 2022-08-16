@@ -1,6 +1,6 @@
 defmodule Google.Pubsub.SubscriptionTest do
   use ExUnit.Case
-  use Google.Pubsub.Testing
+  import Google.Pubsub.Testing
 
   alias Google.Pubsub.{Subscription, Message}
   alias Google.Pubsub.V1.{PubsubMessage}

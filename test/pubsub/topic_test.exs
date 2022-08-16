@@ -1,9 +1,8 @@
 defmodule Google.Pubsub.TopicTest do
   use ExUnit.Case
-  use Google.Pubsub.Testing
+  import Google.Pubsub.Testing
 
   alias Google.Pubsub.{Topic, Message}
-  alias Google.Pubsub.V1.PubsubMessage
 
   describe "create/1" do
     test "should create a topic project and topic provided" do
@@ -40,27 +39,41 @@ defmodule Google.Pubsub.TopicTest do
 
   describe "publish/2" do
     test "publishes single message" do
-      assert Topic.publish(%Google.Pubsub.V1.Topic{name: "projects/test/topics/topic"}, %Message{
-               data: "Hello world"
-             }) == :ok
+      message = Message.new!("Hello world")
+
+      assert Topic.publish(
+               %Google.Pubsub.V1.Topic{name: "projects/test/topics/topic"},
+               message
+             ) == :ok
 
       assert_messages_published("projects/test/topics/topic", [
-        %PubsubMessage{data: "Hello world"}
+        ^message
       ])
     end
 
     test "publishes multiple messages" do
-      assert Topic.publish(%Google.Pubsub.V1.Topic{name: "projects/test/topics/topic"}, [
-               %Message{data: "Hello world"},
-               %Message{data: "Hello world 2"},
-               %Message{data: "Hello world 3"}
-             ]) == :ok
+      messages = [
+        Message.new!(%{hello: "world"}),
+        Message.new!("Hello world 2"),
+        Message.new!("Hello world 3")
+      ]
 
-      assert_messages_published("projects/test/topics/topic", [
-        %PubsubMessage{data: "Hello world"},
-        %PubsubMessage{data: "Hello world 2"},
-        %PubsubMessage{data: "Hello world 3"}
-      ])
+      assert Topic.publish(%Google.Pubsub.V1.Topic{name: "projects/test/topics/topic"}, messages) ==
+               :ok
+
+      assert_messages_published("projects/test/topics/topic", ^messages)
+    end
+
+    test "publishes messages with attributes" do
+      messages = [
+        Message.new!(%{hello: "world"}, %{type: "foo"}),
+        Message.new!(%{hello: "world"}, %{type: "bar"})
+      ]
+
+      assert Topic.publish(%Google.Pubsub.V1.Topic{name: "projects/test/topics/topic"}, messages) ==
+               :ok
+
+      assert_messages_published("projects/test/topics/topic", ^messages)
     end
   end
 end

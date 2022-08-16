@@ -1,12 +1,7 @@
 defmodule Google.Pubsub.Testing do
   import ExUnit.Assertions
   alias Google.Pubsub.{Message, Testing}
-
-  defmacro __using__(_) do
-    quote do
-      import Google.Pubsub.Testing
-    end
-  end
+  alias Google.Pubsub.V1.PubsubMessage
 
   def publish(subscription_id, messages) do
     send(self(), {:messages_published, subscription_id, messages})
@@ -25,9 +20,21 @@ defmodule Google.Pubsub.Testing do
     assert_receive({:topic_created, ^topic_id})
   end
 
-  defmacro assert_messages_published(topic_id, messages) do
+  defmacro assert_messages_published(topic_id, messages, timeout \\ nil) do
     quote do
-      assert_receive({:messages_published, unquote(topic_id), unquote(messages)})
+      assert_receive(
+        {:messages_published, unquote(topic_id), published_messages},
+        unquote(timeout),
+        "Expected messages to be published, but none were"
+      )
+
+      published_messages =
+        published_messages
+        |> Enum.map(fn %PubsubMessage{data: data, attributes: attributes} ->
+          Message.new!(data, attributes)
+        end)
+
+      assert match?(unquote(messages), published_messages)
     end
   end
 

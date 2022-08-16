@@ -11,7 +11,7 @@ end
 
 defmodule Google.Pubsub.SubscriberTest do
   use ExUnit.Case
-  use Google.Pubsub.Testing
+  import Google.Pubsub.Testing
 
   alias Google.Pubsub.Message
 
