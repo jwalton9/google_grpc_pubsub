@@ -2,7 +2,7 @@ defmodule Google.Pubsub.TestSubscriber do
   use Google.Pubsub.Subscriber
 
   @impl true
-  def handle_messages(messages) do
+  def handle_messages(messages, _) do
     send(self(), {:received_messages, messages})
 
     messages

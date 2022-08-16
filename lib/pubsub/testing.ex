@@ -1,7 +1,7 @@
 defmodule Google.Pubsub.Testing do
   import ExUnit.Assertions
   alias Google.Pubsub.{Message, Testing}
-  alias Google.Pubsub.V1.PubsubMessage
+  alias Google.Pubsub.V1.{PubsubMessage, Subscription}
 
   def publish(subscription_id, messages) do
     send(self(), {:messages_published, subscription_id, messages})
@@ -10,7 +10,7 @@ defmodule Google.Pubsub.Testing do
   def publish(subscription_id, mod, messages) do
     ack_ids =
       messages
-      |> mod.handle_messages()
+      |> mod.handle_messages(Subscription.new!(name: subscription_id))
       |> Enum.map(fn %Message{ack_id: ack_id} -> ack_id end)
 
     Testing.Client.acknowledge(subscription_id, ack_ids)

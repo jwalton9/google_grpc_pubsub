@@ -13,7 +13,7 @@ defmodule Google.Pubsub.Subscriber do
 
   defstruct subscription: nil, request_opts: []
 
-  @callback handle_messages([Message.t()]) :: [Message.t()]
+  @callback handle_messages([Message.t()], Subscription.t()) :: [Message.t()]
 
   @unavailable GRPC.Status.unavailable()
   @unknown GRPC.Status.unknown()
@@ -64,7 +64,7 @@ defmodule Google.Pubsub.Subscriber do
           ) do
         subscription
         |> Subscriber.create_stream(request_opts)
-        |> Subscriber.receive_messages(&handle_messages/1)
+        |> Subscriber.receive_messages(subscription, &handle_messages/2)
         |> Subscriber.close_stream(subscription)
 
         schedule_listen()
@@ -113,11 +113,12 @@ defmodule Google.Pubsub.Subscriber do
     GRPC.Stub.send_request(stream, request, end_stream: true)
   end
 
-  @spec receive_messages(GRPC.Client.Stream.t(), function()) :: GRPC.Client.Stream.t()
-  def receive_messages(stream, handle_messages) do
+  @spec receive_messages(GRPC.Client.Stream.t(), Subscription.t(), function()) ::
+          GRPC.Client.Stream.t()
+  def receive_messages(stream, subscription, handle_messages) do
     case GRPC.Stub.recv(stream, timeout: :infinity) do
       {:ok, recv} ->
-        process_recv(recv, stream, handle_messages)
+        process_recv(recv, stream, subscription, handle_messages)
 
       {:error, %GRPC.RPCError{status: @unknown, message: message} = e} ->
         if expected_error?(message), do: [], else: raise(e)
@@ -127,14 +128,15 @@ defmodule Google.Pubsub.Subscriber do
     end
   end
 
-  @spec process_recv(Enumerable.t(), GRPC.Client.Stream.t(), function()) :: GRPC.Client.Stream.t()
-  defp process_recv(recv, stream, handle_messages) do
+  @spec process_recv(Enumerable.t(), GRPC.Client.Stream.t(), Subscription.t(), function()) ::
+          GRPC.Client.Stream.t()
+  defp process_recv(recv, stream, subscription, handle_messages) do
     Enum.reduce(recv, stream, fn
       {:ok, %StreamingPullResponse{received_messages: received_messages}}, stream ->
         ack_ids =
           received_messages
           |> Enum.map(&Message.new!/1)
-          |> handle_messages.()
+          |> handle_messages.(subscription)
           |> Enum.map(fn %Message{ack_id: ack_id} -> ack_id end)
 
         ack(stream, ack_ids)
