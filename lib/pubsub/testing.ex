@@ -23,21 +23,18 @@ defmodule Google.Pubsub.Testing do
   defmacro assert_messages_published(topic_id, messages, timeout \\ nil) do
     quote do
       assert_receive(
-        {:messages_published, unquote(topic_id), messages},
+        {:messages_published, unquote(topic_id), published_messages},
         unquote(timeout),
         "Expected messages to be published, but none were"
       )
 
       published_messages =
-        messages
-        |> Enum.map(fn %PubsubMessage{data: data} ->
-          case Poison.decode(data) do
-            {:ok, data} -> data
-            _ -> data
-          end
+        published_messages
+        |> Enum.map(fn %PubsubMessage{data: data, attributes: attributes} ->
+          Message.new!(data, attributes)
         end)
 
-      assert match?(published_messages, unquote(messages))
+      assert match?(unquote(messages), published_messages)
     end
   end
 

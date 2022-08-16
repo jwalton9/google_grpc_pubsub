@@ -39,28 +39,41 @@ defmodule Google.Pubsub.TopicTest do
 
   describe "publish/2" do
     test "publishes single message" do
+      message = Message.new!("Hello world")
+
       assert Topic.publish(
                %Google.Pubsub.V1.Topic{name: "projects/test/topics/topic"},
-               Message.new!("Hello world")
+               message
              ) == :ok
 
       assert_messages_published("projects/test/topics/topic", [
-        "Hello world"
+        ^message
       ])
     end
 
     test "publishes multiple messages" do
-      assert Topic.publish(%Google.Pubsub.V1.Topic{name: "projects/test/topics/topic"}, [
-               Message.new!(%{hello: "world"}),
-               Message.new!("Hello world 2"),
-               Message.new!("Hello world 3")
-             ]) == :ok
+      messages = [
+        Message.new!(%{hello: "world"}),
+        Message.new!("Hello world 2"),
+        Message.new!("Hello world 3")
+      ]
 
-      assert_messages_published("projects/test/topics/topic", [
-        %{"hello" => "world"},
-        "Hello world 2",
-        "Hello world 3"
-      ])
+      assert Topic.publish(%Google.Pubsub.V1.Topic{name: "projects/test/topics/topic"}, messages) ==
+               :ok
+
+      assert_messages_published("projects/test/topics/topic", ^messages)
+    end
+
+    test "publishes messages with attributes" do
+      messages = [
+        Message.new!(%{hello: "world"}, %{type: "foo"}),
+        Message.new!(%{hello: "world"}, %{type: "bar"})
+      ]
+
+      assert Topic.publish(%Google.Pubsub.V1.Topic{name: "projects/test/topics/topic"}, messages) ==
+               :ok
+
+      assert_messages_published("projects/test/topics/topic", ^messages)
     end
   end
 end

@@ -3,27 +3,39 @@ defmodule Google.Pubsub.Message do
 
   @type t :: %__MODULE__{
           ack_id: String.t(),
-          data: String.t()
+          data: String.t(),
+          attributes: map(),
+          delivery_attempt: number()
         }
 
-  defstruct ack_id: nil, data: nil
+  defstruct ack_id: nil, data: nil, attributes: %{}, delivery_attempt: 0
 
   @spec new!(ReceivedMessage.t() | String.t() | map()) :: t()
-  def new!(%ReceivedMessage{ack_id: ack_id, message: %PubsubMessage{data: data}}) do
+  def new!(%ReceivedMessage{
+        ack_id: ack_id,
+        message: %PubsubMessage{data: data, attributes: attributes},
+        delivery_attempt: delivery_attempt
+      }) do
     %__MODULE__{
       ack_id: ack_id,
-      data: data
+      data: data,
+      delivery_attempt: delivery_attempt,
+      attributes: attributes
     }
   end
 
-  def new!(data) when is_binary(data) do
+  def new!(data) when is_binary(data) or is_map(data), do: new!(data, %{})
+
+  @spec new!(binary() | map(), map()) :: t()
+  def new!(data, attributes) when is_binary(data) do
     %__MODULE__{
-      data: data
+      data: data,
+      attributes: attributes
     }
   end
 
-  def new!(data) when is_map(data) do
-    data |> Poison.encode!() |> new!()
+  def new!(data, attributes) when is_map(data) do
+    data |> Poison.encode!() |> new!(attributes)
   end
 
   @spec decode(t()) :: {:ok, map()} | {:error, any()}

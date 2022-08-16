@@ -33,8 +33,8 @@ defmodule Google.Pubsub.Topic do
   def publish(topic, messages) when is_list(messages) do
     messages =
       messages
-      |> Enum.map(fn %Message{data: data} when is_binary(data) ->
-        PubsubMessage.new(data: data)
+      |> Enum.map(fn %Message{data: data, attributes: attributes} when is_binary(data) ->
+        PubsubMessage.new(data: data, attributes: attributes)
       end)
 
     case client().publish(topic.name, messages) do
