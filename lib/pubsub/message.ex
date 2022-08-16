@@ -2,7 +2,7 @@ defmodule Google.Pubsub.Message do
   alias Google.Pubsub.V1.{ReceivedMessage, PubsubMessage}
 
   @type t :: %__MODULE__{
-          ack_id: String.t(),
+          ack_id: String.t() | nil,
           data: String.t(),
           attributes: map(),
           delivery_attempt: number()
@@ -26,7 +26,7 @@ defmodule Google.Pubsub.Message do
 
   def new!(data) when is_binary(data) or is_map(data), do: new!(data, %{})
 
-  @spec new!(binary() | map(), map()) :: t()
+  @spec new!(String.t() | map(), map()) :: t()
   def new!(data, attributes) when is_binary(data) do
     %__MODULE__{
       data: data,
