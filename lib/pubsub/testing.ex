@@ -34,7 +34,7 @@ defmodule Google.Pubsub.Testing do
           Message.new!(data, attributes)
         end)
 
-      assert match?(unquote(messages), published_messages)
+      assert unquote(messages) = published_messages
     end
   end
 

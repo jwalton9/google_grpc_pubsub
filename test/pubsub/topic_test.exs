@@ -65,15 +65,21 @@ defmodule Google.Pubsub.TopicTest do
     end
 
     test "publishes messages with attributes" do
+      assert Topic.publish(%Google.Pubsub.V1.Topic{name: "projects/test/topics/topic"}, [
+               Message.new!(%{hello: "world"}, %{type: "foo"}),
+               Message.new!(%{hello: "world"}, %{type: "bar"})
+             ]) ==
+               :ok
+
       messages = [
         Message.new!(%{hello: "world"}, %{type: "foo"}),
         Message.new!(%{hello: "world"}, %{type: "bar"})
       ]
 
-      assert Topic.publish(%Google.Pubsub.V1.Topic{name: "projects/test/topics/topic"}, messages) ==
-               :ok
-
-      assert_messages_published("projects/test/topics/topic", ^messages)
+      assert_messages_published(
+        "projects/test/topics/topic",
+        ^messages
+      )
     end
   end
 end
