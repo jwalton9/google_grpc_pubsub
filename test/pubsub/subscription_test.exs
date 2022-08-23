@@ -3,7 +3,6 @@ defmodule Google.Pubsub.SubscriptionTest do
   import Google.Pubsub.Testing
 
   alias Google.Pubsub.{Subscription, Message}
-  alias Google.Pubsub.V1.{PubsubMessage}
 
   describe "create/1" do
     test "should create a subscription project and subscription provided" do
@@ -39,7 +38,7 @@ defmodule Google.Pubsub.SubscriptionTest do
 
   describe "pull/2" do
     test "defaults to 10 max messages" do
-      publish("projects/test/subscriptions/subscription", [%PubsubMessage{data: "foo"}])
+      publish("projects/test/subscriptions/subscription", [%Message{data: "foo"}])
 
       assert {:ok, [%Message{data: "foo"}]} =
                Subscription.pull(%Google.Pubsub.V1.Subscription{
@@ -49,8 +48,8 @@ defmodule Google.Pubsub.SubscriptionTest do
 
     test "when setting max_messages" do
       publish("projects/test/subscriptions/subscription", [
-        %PubsubMessage{data: "foo"},
-        %PubsubMessage{data: "bar"}
+        %Message{data: "foo"},
+        %Message{data: "bar"}
       ])
 
       assert {:ok, [%Message{data: "foo"}]} =

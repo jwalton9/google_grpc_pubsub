@@ -1,12 +1,15 @@
 defmodule Google.Pubsub.Testing.Client do
   import ExUnit.Assertions
 
+  alias Google.Pubsub.Message
+
   alias Google.Pubsub.V1.{
     Topic,
-    PublishResponse,
     Subscription,
-    PullResponse,
-    ReceivedMessage
+    ReceivedMessage,
+    PubsubMessage,
+    PublishResponse,
+    PullResponse
   }
 
   def create_topic(id) do
@@ -47,8 +50,20 @@ defmodule Google.Pubsub.Testing.Client do
     received_messages =
       messages
       |> Enum.take(max_messages)
-      |> Enum.map(fn message ->
-        ReceivedMessage.new(ack_id: to_string(:rand.uniform()), message: message)
+      |> Enum.map(fn %Message{
+                       ack_id: ack_id,
+                       data: data,
+                       attributes: attributes,
+                       delivery_attempt: delivery_attempt
+                     } ->
+        ReceivedMessage.new(
+          ack_id: ack_id || to_string(:rand.uniform()),
+          delivery_attempt: delivery_attempt,
+          message: %PubsubMessage{
+            data: data,
+            attributes: attributes
+          }
+        )
       end)
 
     {:ok, PullResponse.new(received_messages: received_messages)}
