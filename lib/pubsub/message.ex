@@ -35,17 +35,17 @@ defmodule Google.Pubsub.Message do
   end
 
   def new!(data, attributes) when is_map(data) do
-    data |> Poison.encode!() |> new!(attributes)
+    data |> Jason.encode!() |> new!(attributes)
   end
 
   @spec decode(t()) :: {:ok, map()} | {:error, any()}
   def decode(message) do
     message.data
-    |> Poison.decode()
+    |> Jason.decode()
   end
 
   @spec decode!(t()) :: map()
   def decode!(message) do
-    message.data |> Poison.decode!()
+    message.data |> Jason.decode!()
   end
 end
