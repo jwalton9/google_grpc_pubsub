@@ -327,7 +327,6 @@ defmodule Google.Pubsub.V1.ReceivedMessage do
   field(:ack_id, 1, type: :string, json_name: "ackId")
   field(:message, 2, type: Google.Pubsub.V1.PubsubMessage)
   field(:delivery_attempt, 3, type: :int32, json_name: "deliveryAttempt")
-  field(:publish_time, 4, type: Google.Protobuf.Timestamp, json_name: "publishTime")
 end
 
 defmodule Google.Pubsub.V1.GetSubscriptionRequest do
