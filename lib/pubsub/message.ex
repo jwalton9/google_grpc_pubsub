@@ -5,22 +5,25 @@ defmodule Google.Pubsub.Message do
           ack_id: String.t() | nil,
           data: String.t(),
           attributes: map(),
-          delivery_attempt: number()
+          delivery_attempt: number(),
+          publish_time: number()
         }
 
-  defstruct ack_id: nil, data: nil, attributes: %{}, delivery_attempt: 0
+  defstruct ack_id: nil, data: nil, attributes: %{}, delivery_attempt: 0, publish_time: 0
 
   @spec new!(ReceivedMessage.t() | String.t() | map()) :: t()
   def new!(%ReceivedMessage{
         ack_id: ack_id,
         message: %PubsubMessage{data: data, attributes: attributes},
-        delivery_attempt: delivery_attempt
+        delivery_attempt: delivery_attempt,
+        publish_time: %Google.Protobuf.Timestamp{seconds: publish_time}
       }) do
     %__MODULE__{
       ack_id: ack_id,
       data: data,
       delivery_attempt: delivery_attempt,
-      attributes: attributes
+      attributes: attributes,
+      publish_time: publish_time
     }
   end
 
