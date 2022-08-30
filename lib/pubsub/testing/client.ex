@@ -57,8 +57,6 @@ defmodule Google.Pubsub.Testing.Client do
                        delivery_attempt: delivery_attempt,
                        publish_time: publish_time
                      } ->
-        IO.inspect(publish_time, label: "HSASJFOIASF")
-
         ReceivedMessage.new(
           ack_id: ack_id || to_string(:rand.uniform()),
           delivery_attempt: delivery_attempt,
