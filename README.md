@@ -15,7 +15,7 @@ by adding `google_grpc_pubsub` to your list of dependencies in `mix.exs`:
 ```elixir
 def deps do
   [
-    {:google_grpc_pubsub, "~> 0.1.2"}
+    {:google_grpc_pubsub, "~> 0.3.4"}
   ]
 end
 ```
@@ -61,14 +61,17 @@ config :google_grpc_pubsub,
 {:ok, topic} = Google.Pubsub.Topic.get(project: "my-project", topic: "my-topic")
 
 # Publish some string data
-Google.PubSub.Topic.publish(topic, "my string data")
+Google.Pubsub.Topic.publish(topic, Google.Pubsub.Message.new("my string data"))
 
 # Or you can publish a map, which will be encoded to JSON
-Google.Pubsub.Topic.publish(topic, %{some: "json data"})
+Google.Pubsub.Topic.publish(topic, Google.Pubsub.Message.new(%{some: "json data"}))
 
 
 # You can also publish multiple messages at once
-Google.Pubsub.Topic.publish(topic, [%{some: "json data"}, %{another: "message"}])
+Google.Pubsub.Topic.publish(topic, [
+  Google.Pubsub.Message.new(%{some: "json data"}),
+  Google.Pubsub.Message.new(%{another: "message"})
+])
 ```
 
 ### Pulling Messages
@@ -86,8 +89,8 @@ Google.Pubsub.Topic.publish(topic, [%{some: "json data"}, %{another: "message"}]
 
 {:ok, messages} = Google.Pubsub.Subscription.pull(subscription, max_messages: 5)
 
-messages
-|> Enum.map(&Google.Pubsub.Message.decode!/1)
-|> Enum.filter(fn message -> message.data["valid"] end)
-|> Pubsub.acknowledge(subscription)
+...
+
+
+Google.Pubsub.Subscription.acknowledge(subscription, messages)
 ```
