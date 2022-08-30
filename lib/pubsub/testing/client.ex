@@ -60,13 +60,13 @@ defmodule Google.Pubsub.Testing.Client do
         ReceivedMessage.new(
           ack_id: ack_id || to_string(:rand.uniform()),
           delivery_attempt: delivery_attempt,
-          publish_time: %Google.Protobuf.Timestamp{
-            seconds: DateTime.to_unix(publish_time),
-            nanos: 0
-          },
           message: %PubsubMessage{
             data: data,
-            attributes: attributes
+            attributes: attributes,
+            publish_time: %Google.Protobuf.Timestamp{
+              seconds: DateTime.to_unix(publish_time),
+              nanos: 0
+            }
           }
         )
       end)
