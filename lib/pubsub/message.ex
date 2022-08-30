@@ -6,10 +6,10 @@ defmodule Google.Pubsub.Message do
           data: String.t(),
           attributes: map(),
           delivery_attempt: number(),
-          publish_time: number()
+          publish_time: DateTime.t() | nil
         }
 
-  defstruct ack_id: nil, data: nil, attributes: %{}, delivery_attempt: 0, publish_time: 0
+  defstruct ack_id: nil, data: nil, attributes: %{}, delivery_attempt: 0, publish_time: nil
 
   @spec new!(ReceivedMessage.t() | String.t() | map()) :: t()
   def new!(%ReceivedMessage{
@@ -26,7 +26,7 @@ defmodule Google.Pubsub.Message do
       data: data,
       delivery_attempt: delivery_attempt,
       attributes: attributes,
-      publish_time: publish_time
+      publish_time: DateTime.from_unix!(publish_time)
     }
   end
 
