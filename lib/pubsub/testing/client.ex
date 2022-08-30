@@ -64,7 +64,8 @@ defmodule Google.Pubsub.Testing.Client do
             data: data,
             attributes: attributes,
             publish_time: %Google.Protobuf.Timestamp{
-              seconds: if(publish_time, do: DateTime.to_unix(publish_time), else: 0),
+              seconds:
+                if(publish_time, do: publish_time, else: DateTime.utc_now()) |> DateTime.to_unix(),
               nanos: 0
             }
           }
