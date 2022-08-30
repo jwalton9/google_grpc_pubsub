@@ -57,6 +57,8 @@ defmodule Google.Pubsub.Testing.Client do
                        delivery_attempt: delivery_attempt,
                        publish_time: publish_time
                      } ->
+        IO.inspect(publish_time, label: "HSASJFOIASF")
+
         ReceivedMessage.new(
           ack_id: ack_id || to_string(:rand.uniform()),
           delivery_attempt: delivery_attempt,
@@ -64,7 +66,7 @@ defmodule Google.Pubsub.Testing.Client do
             data: data,
             attributes: attributes,
             publish_time: %Google.Protobuf.Timestamp{
-              seconds: DateTime.to_unix(publish_time),
+              seconds: if(publish_time, do: DateTime.to_unix(publish_time), else: 0),
               nanos: 0
             }
           }
