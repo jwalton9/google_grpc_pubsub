@@ -3,6 +3,36 @@ defmodule Google.Pubsub.Testing do
   alias Google.Pubsub.{Message, Testing}
   alias Google.Pubsub.V1.{PubsubMessage, Subscription}
 
+  defmacro __using__(shared: true) do
+    quote do
+      setup tags do
+        if tags[:async] do
+          raise """
+          you cannot use Google.Pubsub.Testing shared mode with async tests.
+          Set your test to [async: false]
+          """
+        else
+          Application.put_env(:google_grpc_pubsub, :shared_test_process, self())
+        end
+
+        :ok
+      end
+
+      import Google.Pubsub.Testing
+    end
+  end
+
+  defmacro __using__(_) do
+    quote do
+      setup do
+        Application.delete_env(:google_grpc_pubsub, :shared_test_process)
+        :ok
+      end
+
+      import Google.Pubsub.Testing
+    end
+  end
+
   def publish(subscription_id, messages) do
     send(self(), {:messages_published, subscription_id, messages})
   end

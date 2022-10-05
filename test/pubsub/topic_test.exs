@@ -1,6 +1,6 @@
 defmodule Google.Pubsub.TopicTest do
   use ExUnit.Case
-  import Google.Pubsub.Testing
+  use Google.Pubsub.Testing
 
   alias Google.Pubsub.{Topic, Message}
 

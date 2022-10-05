@@ -13,7 +13,7 @@ defmodule Google.Pubsub.Testing.Client do
   }
 
   def create_topic(id) do
-    send(self(), {:topic_created, id})
+    send_message({:topic_created, id})
     {:ok, Topic.new(name: id)}
   end
 
@@ -22,12 +22,12 @@ defmodule Google.Pubsub.Testing.Client do
   end
 
   def publish(topic_id, messages) do
-    send(self(), {:messages_published, topic_id, messages})
+    send_message({:messages_published, topic_id, messages})
     {:ok, PublishResponse.new()}
   end
 
   def create_subscription(topic_id, subscription_id) do
-    send(self(), {:create_subscription, topic_id, subscription_id})
+    send_message({:create_subscription, topic_id, subscription_id})
 
     {:ok,
      Subscription.new(
@@ -76,7 +76,13 @@ defmodule Google.Pubsub.Testing.Client do
   end
 
   def acknowledge(subscription_id, ack_ids) do
-    send(self(), {:acknowledged_messages, subscription_id, ack_ids})
+    send_message({:acknowledged_messages, subscription_id, ack_ids})
     {:ok, Google.Protobuf.Empty.new()}
+  end
+
+  defp send_message(data) do
+    pid = Application.get_env(:google_grpc_pubsub, :shared_test_process, self())
+
+    send(pid, data)
   end
 end
