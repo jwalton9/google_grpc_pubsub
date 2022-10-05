@@ -68,11 +68,30 @@ defmodule Google.Pubsub.Testing do
     end
   end
 
+  def assert_no_message_published(opts \\ []) do
+    timeout = Keyword.get(opts, :timeout, 10)
+
+    receive do
+      {:messages_published, topic_id, messages} ->
+        flunk_unexpected_messages(topic_id, messages)
+    after
+      timeout -> true
+    end
+  end
+
   def assert_subscription_created(topic_id, subscription_id) do
     assert_receive({:create_subscription, ^topic_id, ^subscription_id})
   end
 
   def assert_acknowledged_messages(subscription_id, ack_ids) do
     assert_receive({:acknowledged_messages, ^subscription_id, ^ack_ids})
+  end
+
+  defp flunk_unexpected_messages(topic_id, messages) do
+    flunk("""
+    Unexpectedly published messages to #{topic_id} when expected none.
+    Published messages:
+      #{inspect(messages)}
+    """)
   end
 end
