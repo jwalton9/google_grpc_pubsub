@@ -15,7 +15,7 @@ by adding `google_grpc_pubsub` to your list of dependencies in `mix.exs`:
 ```elixir
 def deps do
   [
-    {:google_grpc_pubsub, "~> 0.3.4"}
+    {:google_grpc_pubsub, "~> 0.4"}
   ]
 end
 ```
