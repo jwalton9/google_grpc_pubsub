@@ -111,10 +111,9 @@ defmodule Google.Pubsub.Client do
   end
 
   defp auth_token() do
-    if Application.get_env(:goth, :disabled, false) do
-      {:ok, nil}
-    else
-      Goth.Token.for_scope("https://www.googleapis.com/auth/pubsub")
+    case Application.get_env(:google_grpc_pubsub, :goth) do
+      nil -> {:ok, nil}
+      mod -> Goth.fetch(mod)
     end
   end
 end

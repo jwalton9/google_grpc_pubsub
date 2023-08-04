@@ -4,7 +4,7 @@ defmodule Google.Pubsub.MixProject do
   def project do
     [
       app: :google_grpc_pubsub,
-      version: "0.4.1",
+      version: "0.4.2",
       elixir: "~> 1.12",
       start_permanent: Mix.env() == :prod,
       deps: deps(),
@@ -32,7 +32,7 @@ defmodule Google.Pubsub.MixProject do
       {:certifi, "~> 2.9"},
       {:dialyxir, "~> 1.0", only: :dev, runtime: false},
       {:ex_doc, "~> 0.27", only: :dev, runtime: false},
-      {:goth, "~> 1.2"},
+      {:goth, "~> 1.4"},
       {:grpc, "~> 0.3"},
       {:jason, "~> 1.3"},
       {:poolboy, "~> 1.5.1"},
