@@ -15,7 +15,7 @@ by adding `google_grpc_pubsub` to your list of dependencies in `mix.exs`:
 ```elixir
 def deps do
   [
-    {:google_grpc_pubsub, "~> 0.3.4"}
+    {:google_grpc_pubsub, "~> 0.4"}
   ]
 end
 ```
@@ -24,14 +24,18 @@ end
 
 `google_grpc_pubsub` uses `Goth` to authenticate with Google's APIs.
 
+You must configure [Goth in your supervision tree](https://hexdocs.pm/goth/readme.html#installation), and then configure this library
+
+```elixir
+config :google_grpc_pubsub,
+  goth: MyApp.Goth
+```
+
 If you want to use this library against the Pubsub emulator
 
 ```elixir
 config :google_grpc_pubsub,
   emulator: {"localhost", 8085}
-
-config :goth,
-  disabled: true
 ```
 
 By default there can be 10 concurrent calls to the rpc channel, if you would like to increase this
