@@ -33,9 +33,9 @@ defmodule Google.Pubsub.MixProject do
       {:dialyxir, "~> 1.0", only: :dev, runtime: false},
       {:ex_doc, "~> 0.27", only: :dev, runtime: false},
       {:goth, "~> 1.4"},
-      {:grpc, "~> 0.3"},
+      {:grpc, "~> 0.7"},
       {:jason, "~> 1.3"},
-      {:poolboy, "~> 1.5.1"},
+      {:poolboy, "~> 1.5.2"},
       {:protobuf, "~> 0.10"}
     ]
   end
