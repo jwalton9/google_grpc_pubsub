@@ -131,7 +131,7 @@ defmodule Google.Pubsub.Subscriber do
   @spec process_recv(Enumerable.t(), GRPC.Client.Stream.t(), Subscription.t(), function()) ::
           GRPC.Client.Stream.t()
   defp process_recv(recv, stream, subscription, handle_messages) do
-    Enum.reduce(recv, stream, fn
+    Enum.reduce_while(recv, stream, fn
       {:ok, %StreamingPullResponse{received_messages: received_messages}}, stream ->
         ack_ids =
           received_messages
@@ -139,16 +139,16 @@ defmodule Google.Pubsub.Subscriber do
           |> handle_messages.(subscription)
           |> Enum.map(fn %Message{ack_id: ack_id} -> ack_id end)
 
-        ack(stream, ack_ids)
+        {:cont, ack(stream, ack_ids)}
 
       {:error, %GRPC.RPCError{status: @unavailable}}, stream ->
-        stream
+        {:cont, stream}
 
-      {:error, %GRPC.RPCError{status: @unknown, message: message} = error}, stream ->
-        if expected_error?(message), do: stream, else: raise(error)
+      {:error, %GRPC.RPCError{status: @unknown, message: message}}, stream ->
+        if expected_error?(message), do: {:cont, stream}, else: {:halt, stream}
 
-      {:error, error}, _stream ->
-        raise error
+      {:error, _error}, _stream ->
+        {:halt, stream}
     end)
   end
 
