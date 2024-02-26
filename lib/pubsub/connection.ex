@@ -52,16 +52,16 @@ defmodule Google.Pubsub.Connection do
 
         GRPC.Stub.connect("pubsub.googleapis.com:443",
           cred: credentials,
-          adapter_opts: %{
+          adapter_opts: [
             http2_opts: %{keepalive: :infinity}
-          }
+          ]
         )
 
       {host, port} when is_binary(host) and is_number(port) ->
         GRPC.Stub.connect(host, port,
-          adapter_opts: %{
+          adapter_opts: [
             http2_opts: %{keepalive: :infinity}
-          }
+          ]
         )
     end
   end
